@@ -66,6 +66,17 @@ The stage workflow runs the underlying perception system on a new video; it
 does not replay prepared arrivals:
 
 ```bash
+bash scripts/launcher.sh
+```
+
+This opens a local, offline launcher. Choose or drop a video and it copies the
+file into an isolated run, shows calibration and inference progress, validates
+the generated artifacts, and opens that run's 3D comparison automatically.
+No terminal interaction is needed after the launcher is open.
+
+The command-line equivalent remains:
+
+```bash
 bash scripts/live_demo.sh path/to/intersection.mp4
 ```
 

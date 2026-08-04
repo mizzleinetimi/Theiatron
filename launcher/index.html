@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Theiatron — New footage</title>
+  <meta name="description" content="Choose an intersection video and build a live Theiatron traffic comparison.">
+  <link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/launcher/" aria-label="Theiatron home">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>THEIATRON</span>
+    </a>
+    <span class="local-status"><i></i> LOCAL · OFFLINE</span>
+  </header>
+
+  <main>
+    <section class="intro">
+      <p class="eyebrow">FROM FOOTAGE TO WHAT-IF</p>
+      <h1>Choose an intersection video.</h1>
+      <p class="lede">Theiatron will learn the roads, detect every arrival, compare two signal policies, and build the 3D result automatically.</p>
+    </section>
+
+    <section id="pickerPanel" class="picker-panel" aria-labelledby="pickerTitle">
+      <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-describedby="pickerHelp">
+        <input id="fileInput" type="file" hidden accept="video/*,.mov,.mp4,.m4v,.avi,.mkv,.webm">
+        <div class="drop-icon" aria-hidden="true"><span></span></div>
+        <h2 id="pickerTitle">Drop footage here</h2>
+        <p>or <strong>choose a video</strong> from this computer</p>
+        <small id="pickerHelp">MOV, MP4, M4V, AVI, MKV or WebM · up to 4 GB</small>
+      </div>
+      <div class="footage-guide">
+        <span>Best results</span>
+        <ul>
+          <li>Static, elevated camera</li>
+          <li>One complete intersection</li>
+          <li>90–180+ seconds of traffic</li>
+          <li>Vehicles on at least three approaches</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="runPanel" class="run-panel" hidden aria-live="polite">
+      <div class="run-heading">
+        <div>
+          <p id="runKicker" class="eyebrow">VIDEO RECEIVED</p>
+          <h2 id="runTitle">Preparing footage</h2>
+          <p id="runMeta" class="run-meta"></p>
+        </div>
+        <span id="percent" class="percent">0%</span>
+      </div>
+
+      <div class="progress-track" aria-hidden="true"><div id="progressBar"></div></div>
+      <ol class="stages" aria-label="Analysis stages">
+        <li data-stage="upload"><b>1</b><span>Upload</span></li>
+        <li data-stage="calibrating"><b>2</b><span>Learn roads</span></li>
+        <li data-stage="analyzing"><b>3</b><span>Compare control</span></li>
+        <li data-stage="building"><b>4</b><span>Build 3D</span></li>
+      </ol>
+
+      <div id="resultSummary" class="result-summary" hidden></div>
+      <pre id="runLog" class="run-log" aria-label="Live analysis log"></pre>
+      <div class="run-actions">
+        <button id="chooseAgain" class="secondary" type="button" hidden>Choose another video</button>
+        <a id="openResult" class="primary" href="#" hidden>Open 3D comparison</a>
+      </div>
+    </section>
+
+    <p id="errorMessage" class="error-message" hidden role="alert"></p>
+  </main>
+
+  <footer>
+    <span>Demand is measured from the selected video.</span>
+    <span>Signal response and queue discharge are simulated.</span>
+  </footer>
+  <script src="app.js?v=1"></script>
+</body>
+</html>

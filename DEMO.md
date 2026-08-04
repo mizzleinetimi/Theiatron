@@ -30,6 +30,16 @@ cuts, moving cameras, dashcams, highways, and mostly empty clips.
 Run the full test once:
 
 ```bash
+bash scripts/launcher.sh
+```
+
+Choose or drag the footage onto the page. Processing begins immediately and
+the run-specific 3D comparison opens when calibration, inference, simulation,
+and artifact validation have all completed.
+
+Command-line fallback:
+
+```bash
 bash scripts/live_demo.sh videos/intersection.mp4
 ```
 
