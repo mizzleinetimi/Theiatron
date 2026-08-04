@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Theiatron — traffic lights that see</title>
-<meta name="description" content="Theiatron is an AI traffic light selected for the NextGen Innovation Challenge. Working prototype: −44% average waiting time on real footage. Looking for one elevated view of a local intersection.">
+<meta name="description" content="Theiatron is an AI traffic light selected for the NextGen Innovation Challenge. Prototype simulation: 45% lower modeled average waiting on one real-video demand stream. Looking for one elevated view of a local intersection.">
 <meta property="og:title" content="Theiatron — traffic lights that see">
-<meta property="og:description" content="On-device AI signal control. −44% average waiting time on real traffic. Selected for the NextGen Innovation Challenge.">
+<meta property="og:description" content="On-device AI signal control prototype. 45% lower modeled average waiting in one controlled real-video-demand simulation.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@700;800;900&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -201,8 +201,8 @@
        Theiatron puts a camera and a 6&nbsp;MB neural network on the pole: it counts real traffic and
        gives green time where it's needed. <b>No internet. No control room.</b></p>
     <div class="hero-stats">
-      <div class="stat"><b>−44%</b><span>AVG WAIT PER CAR</span></div>
-      <div class="stat"><b>−51%</b><span>WORST-CASE WAITS</span></div>
+      <div class="stat"><b>−45%</b><span>MODELED AVG WAIT</span></div>
+      <div class="stat"><b>−51%</b><span>MODELED P95 WAIT</span></div>
       <div class="stat"><b>10×/s</b><span>SEES EVERY VEHICLE</span></div>
     </div>
   </div>
@@ -264,14 +264,14 @@
     <table>
       <thead><tr><th>Metric</th><th>Old fixed timer</th><th>Theiatron</th><th>Change</th></tr></thead>
       <tbody>
-        <tr><td class="metric">Average wait per car</td><td class="old">10.6 s</td><td>5.9 s</td><td class="delta">−44%</td></tr>
-        <tr><td class="metric">95th-percentile wait</td><td class="old">36.7 s</td><td>17.9 s</td><td class="delta">−51%</td></tr>
+        <tr><td class="metric">Modeled average wait per car</td><td class="old">10.9 s</td><td>6.04 s</td><td class="delta">−45%</td></tr>
+        <tr><td class="metric">Modeled 95th-percentile wait</td><td class="old">36.73 s</td><td>17.96 s</td><td class="delta">−51%</td></tr>
         <tr><td class="metric">Worst single wait</td><td class="old">40.9 s</td><td>20.7 s</td><td class="delta">cut in half</td></tr>
       </tbody>
     </table>
   </div>
-  <p class="cap">Both controllers consumed the identical stream of real detected vehicles. Every number is
-     reproducible from recorded data.</p>
+  <p class="cap">Both controllers consumed the identical stream of 40 detected arrivals. These are modeled
+     point-queue waits for this scenario, reproducible from the recorded event data.</p>
 </section>
 
 <hr class="lane">

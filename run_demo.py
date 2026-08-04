@@ -7,6 +7,10 @@ vision-derived arrivals so the dashboard shows the live wait-time gap):
     python run_demo.py --config configs/approaches.yaml --duration 120 \
         --record out/annotated.mp4 --record-arrivals out/events.json
 
+Learn and analyze a new single-camera intersection video end to end:
+
+    python run_demo.py --live-demo --video path/to/intersection.mp4
+
 Deterministic offline replay of a recorded arrival stream (no vision):
 
     python run_demo.py --replay out/events.json --duration 120
@@ -28,9 +32,21 @@ from theiatron.config import AppConfig, load_config, save_config
 from theiatron.controller import AdaptiveController, FixedController, SignalState
 from theiatron.engine import IntersectionEngine
 from theiatron.events import load_events, save_events
-from theiatron.metrics import comparison_report, summarize, write_report
+from theiatron.metrics import (
+    MIN_COMPARISON_ARRIVALS,
+    comparison_report,
+    summarize,
+    total_censored_wait,
+    write_report,
+)
 
 PHASE_LABEL = {"NS": "North-South", "EW": "East-West"}
+DEFAULT_CONFIG = "configs/approaches.yaml"
+
+
+def config_path(args, default: str = DEFAULT_CONFIG) -> str:
+    """Resolve an optional CLI config without hiding replay metadata."""
+    return args.config or default
 
 
 def narrate(engine) -> str:
@@ -75,12 +91,20 @@ def finish(cfg, adaptive, fixed, end_time, out_dir):
     md_path, json_path = write_report(md, data, out_dir)
     print(md)
     print(f"report: {md_path}  |  {json_path}")
+    return data
 
 
 def run_replay(args):
-    cfg = load_config(args.config)
     events, meta = load_events(args.replay)
-    duration = args.duration or (events[-1][0] + 30.0 if events else 60.0)
+    cfg_path = args.config or meta.get("config") or DEFAULT_CONFIG
+    if not Path(cfg_path).exists():
+        sys.exit(f"replay config does not exist: {cfg_path}")
+    cfg = load_config(cfg_path)
+    duration = (
+        args.duration
+        if args.duration is not None
+        else float(meta.get("duration") or (events[-1][0] + 30.0 if events else 60.0))
+    )
     adaptive, fixed = build_engines(cfg)
     adaptive.run_replay(events, duration)
     fixed.run_replay(events, duration)
@@ -91,10 +115,11 @@ def run_replay(args):
 def run_calibrate(args):
     import cv2
 
-    cfg = load_config(args.config)
+    cfg_path = config_path(args)
+    cfg = load_config(cfg_path)
     approach = next((a for a in cfg.approaches if a.name == args.calibrate), None)
     if approach is None:
-        sys.exit(f"no approach named {args.calibrate!r} in {args.config}")
+        sys.exit(f"no approach named {args.calibrate!r} in {cfg_path}")
     cap = cv2.VideoCapture(approach.video)
     if not cap.isOpened():
         sys.exit(f"cannot open {approach.video}")
@@ -134,8 +159,8 @@ def run_calibrate(args):
         if key == ord("s") and len(clicks) == 3:
             approach.count_line = [list(clicks[0]), list(clicks[1])]
             approach.approach_side = list(clicks[2])
-            save_config(cfg, args.config)
-            print(f"saved count line for {approach.name} -> {args.config}")
+            save_config(cfg, cfg_path)
+            print(f"saved count line for {approach.name} -> {cfg_path}")
             break
     cv2.destroyAllWindows()
 
@@ -153,7 +178,8 @@ def run_autocal(args):
     from theiatron.detection import VehicleDetector
     from theiatron.feeds import VideoFeed
 
-    cfg = load_config(args.config)
+    cfg_path = config_path(args)
+    cfg = load_config(cfg_path)
     if not cfg.approaches:
         sys.exit("config needs at least one approach entry to know which video to watch")
     video = cfg.approaches[0].video
@@ -256,10 +282,10 @@ def run_autocal(args):
     for c in corridors:
         c.count_line = list(autocal.clip_line_to_mask(*c.count_line, mask))
 
-    backup = str(args.config) + ".bak"
-    shutil.copyfile(args.config, backup)
+    backup = str(cfg_path) + ".bak"
+    shutil.copyfile(cfg_path, backup)
     cfg.approaches = autocal.to_approach_configs(corridors, video)
-    save_config(cfg, args.config)
+    save_config(cfg, cfg_path)
 
     # Overlay for human review.
     vis = (frame0 * 0.55).astype(np.uint8)
@@ -320,12 +346,523 @@ def run_autocal(args):
         writer.release()
         print(f"process video (raw): {process_path}")
 
-    print(f"\nauto-calibrated {len(corridors)} approaches -> {args.config} "
+    print(f"\nauto-calibrated {len(corridors)} approaches -> {cfg_path} "
           f"(previous config: {backup})")
     for c in corridors:
         print(f"  {c.name:<6} phase={c.phase} tracks={len(c.tracks):>3} "
               f"line={c.count_line}")
     print(f"review overlay: {overlay}")
+
+
+def _normalize_frame(frame, width: int = 1280, height: int = 720):
+    """Normalize arbitrary footage to the calibration coordinate system."""
+    import cv2
+
+    if frame.shape[1] == width and frame.shape[0] == height:
+        return frame
+    return cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
+
+
+def _calibration_quality(corridors, moving_count: int) -> dict:
+    """Small, explainable quality gate for an automatically learned layout."""
+    import math
+
+    members = sum(len(c.tracks) for c in corridors)
+    min_members = min((len(c.tracks) for c in corridors), default=0)
+    coverage = members / max(moving_count, 1)
+    phases = {c.phase for c in corridors if c.phase}
+    line_lengths = [
+        math.hypot(c.count_line[1][0] - c.count_line[0][0],
+                   c.count_line[1][1] - c.count_line[0][1])
+        for c in corridors if len(c.count_line) == 2
+    ]
+    min_line_length = min(line_lengths, default=0.0)
+    geometry_valid = (
+        len(line_lengths) == len(corridors)
+        and min_line_length >= 24.0
+        and all(c.name and c.phase and c.approach_side for c in corridors)
+    )
+    score = (
+        0.35 * min(len(corridors) / 4.0, 1.0)
+        + 0.35 * min(moving_count / 20.0, 1.0)
+        + 0.30 * min(coverage, 1.0)
+    )
+    if (geometry_valid and len(phases) == 2 and len(corridors) >= 3
+            and min_members >= 3 and score >= 0.62):
+        label = "good"
+    elif (geometry_valid and len(phases) == 2 and len(corridors) >= 3
+          and min_members >= 3):
+        label = "usable"
+    else:
+        label = "low"
+    return {
+        "label": label,
+        "score": round(score, 3),
+        "corridors": len(corridors),
+        "moving_tracks": moving_count,
+        "clustered_tracks": members,
+        "coverage": round(coverage, 3),
+        "minimum_tracks_per_corridor": min_members,
+        "phases_found": sorted(phases),
+        "minimum_line_length_px": round(min_line_length, 1),
+        "geometry_valid": geometry_valid,
+    }
+
+
+def _sha256(path: Path) -> str:
+    import hashlib
+
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _new_run_dir(root: str | Path, requested_name: str | None = None) -> Path:
+    from datetime import datetime
+
+    base = Path(root)
+    name = requested_name or datetime.now().strftime("live-%Y%m%d-%H%M%S")
+    out = base / name
+    if out.exists():
+        raise FileExistsError(f"run output already exists: {out}")
+    out.mkdir(parents=True)
+    return out
+
+
+def _draw_calibration_observation(frame, detections, paths, elapsed, target):
+    """Live proof that calibration is learning from current detector tracks."""
+    import cv2
+    import numpy as np
+
+    vis = frame.copy()
+    for pts in paths.values():
+        if len(pts) >= 2:
+            # Only the recent tail is needed on screen; the full path remains
+            # available to the calibration algorithm.
+            poly = np.array([[int(x), int(y)] for _, x, y in pts[-80:]], np.int32)
+            cv2.polylines(vis, [poly], False, (50, 160, 220), 2)
+    for d in detections:
+        x1, y1, x2, y2 = map(int, d.box)
+        cv2.rectangle(vis, (x1 - 1, y1 - 1), (x2 + 1, y2 + 1), (0, 0, 0), 4)
+        cv2.rectangle(vis, (x1, y1), (x2, y2), (255, 255, 255), 2)
+        cv2.putText(vis, str(d.track_id), (x1, max(18, y1 - 5)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1)
+    cv2.rectangle(vis, (0, 0), (vis.shape[1], 66), (14, 13, 10), -1)
+    cv2.putText(vis, "LIVE SETUP  |  learning intersection from vehicle motion",
+                (16, 28), cv2.FONT_HERSHEY_DUPLEX, 0.76, (36, 183, 255), 2)
+    cv2.putText(vis, f"observed {elapsed:5.1f}s / {target:.0f}s   "
+                f"tracks {len(paths)}   active detections {len(detections)}",
+                (16, 54), cv2.FONT_HERSHEY_SIMPLEX, 0.58, (220, 220, 220), 1)
+    return vis
+
+
+def _draw_calibration_result(frame, mask, tracks, corridors, quality):
+    import cv2
+    import numpy as np
+
+    from theiatron.dashboard import APPROACH_COLORS
+
+    vis = (frame * 0.55).astype(np.uint8)
+    tint = np.zeros_like(vis)
+    tint[mask > 0] = (60, 45, 20)
+    vis = cv2.add(vis, tint)
+    for pts in tracks:
+        if len(pts) >= 2:
+            poly = np.array([[int(x), int(y)] for _, x, y in pts], np.int32)
+            cv2.polylines(vis, [poly], False, (100, 100, 100), 1)
+    for c in corridors:
+        color = APPROACH_COLORS.get(c.name, (255, 255, 255))
+        p1, p2 = tuple(c.count_line[0]), tuple(c.count_line[1])
+        cv2.line(vis, p1, p2, color, 4)
+        cv2.circle(vis, tuple(c.approach_side), 6, color, -1)
+        cv2.putText(vis, f"{c.name.upper()}  {c.phase}  {len(c.tracks)} tracks",
+                    (p1[0] + 7, max(28, p1[1] - 10)),
+                    cv2.FONT_HERSHEY_DUPLEX, 0.72, color, 2)
+    cv2.rectangle(vis, (0, 0), (vis.shape[1], 64), (14, 13, 10), -1)
+    cv2.putText(vis, f"CALIBRATION {quality['label'].upper()}  |  "
+                f"{quality['corridors']} approaches learned",
+                (16, 28), cv2.FONT_HERSHEY_DUPLEX, 0.78, (36, 183, 255), 2)
+    cv2.putText(vis, f"{quality['moving_tracks']} moving tracks observed  |  "
+                f"{quality['coverage']:.0%} assigned to traffic corridors",
+                (16, 54), cv2.FONT_HERSHEY_SIMPLEX, 0.58, (220, 220, 220), 1)
+    return vis
+
+
+def _harvest_track_artifacts(extractors, recorder) -> dict:
+    """Timeline-compatible motion artifacts for one single-camera session."""
+    counted = []
+    counted_tids = set()
+    for ex in extractors.values():
+        counted.extend(ex.harvest_motions(recorder))
+        counted_tids |= set(ex.count_num)
+    extras = []
+    for tid, rec in recorder.live.items():
+        pts = rec["pts"]
+        if tid in counted_tids or len(pts) < 8:
+            continue
+        (t_a, xa, ya), (t_b, xb, yb) = pts[0], pts[-1]
+        displacement = ((xb - xa) ** 2 + (yb - ya) ** 2) ** 0.5
+        if displacement < 25 and (t_b - t_a) < 8.0:
+            continue
+        kept = []
+        for t, x, y in pts:
+            if (not kept or abs(x - kept[-1][1]) + abs(y - kept[-1][2]) > 2.0
+                    or t - kept[-1][0] >= 3.0):
+                kept.append([round(t, 2), round(x, 1), round(y, 1)])
+        if kept[-1][0] != round(t_b, 2):
+            kept.append([round(t_b, 2), round(xb, 1), round(yb, 1)])
+        extras.append({"ts": round(t_a, 2), "t_end": round(t_b, 2), "pts": kept})
+    return {"counted": counted, "extras": extras}
+
+
+def run_live_demo(args):
+    """Learn a new video, then run fresh perception + A/B control live."""
+    import json
+    from collections import defaultdict
+
+    import cv2
+    import numpy as np
+
+    from theiatron import autocal
+    from theiatron.approach import ArrivalExtractor, TrackRecorder
+    from theiatron.dashboard import Dashboard, annotate_intersection
+    from theiatron.detection import VehicleDetector
+    from theiatron.feeds import VideoFeed
+
+    cfg_path = config_path(args, "configs/intersection.yaml")
+    if not Path(cfg_path).exists():
+        sys.exit(f"base config does not exist: {cfg_path}")
+    cfg = load_config(cfg_path)
+    if args.model:
+        cfg.vision.model = args.model
+    if args.device:
+        cfg.vision.device = args.device
+
+    video = args.video or (cfg.approaches[0].video if cfg.approaches else None)
+    if not video:
+        sys.exit("--live-demo needs --video or a config containing one video")
+    source = Path(video).expanduser()
+    if not source.is_file():
+        sys.exit(f"video does not exist: {source}")
+    if args.observe <= 0:
+        sys.exit("--observe must be greater than zero")
+    if args.duration is not None and args.duration <= 0:
+        sys.exit("--duration must be greater than zero")
+
+    cap = cv2.VideoCapture(str(source))
+    if not cap.isOpened():
+        sys.exit(f"cannot open video: {source}")
+    native_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+    cap.release()
+    total_duration = frame_count / native_fps if frame_count else 0.0
+    if width < 320 or height < 240:
+        sys.exit(f"video resolution is too small for reliable tracking: {width}x{height}")
+    if total_duration and total_duration < 15.0:
+        sys.exit(f"video is only {total_duration:.1f}s; use at least 15s, preferably 90s+")
+
+    try:
+        run_dir = _new_run_dir(args.out, args.run_name)
+    except FileExistsError as e:
+        sys.exit(str(e))
+    source_hash = _sha256(source)
+    observe_target = min(args.observe, total_duration) if total_duration else args.observe
+    eval_target = (
+        args.duration
+        if args.duration is not None
+        else (total_duration if args.evaluation_scope == "full" and total_duration else 120.0)
+    )
+    print("\n=== THEIATRON LIVE DEMO ===")
+    print(f"source: {source}  ({width}x{height}, {native_fps:.2f} FPS, "
+          f"{total_duration:.1f}s)")
+    print(f"run artifacts: {run_dir}")
+    print(f"stage 1/3: observing up to {observe_target:.0f}s for automatic calibration")
+
+    feed = VideoFeed(str(source), cfg.vision.process_fps, loop=False)
+    detector = VehicleDetector(cfg.vision)
+    paths = defaultdict(list)
+    first_frame = last_frame = None
+    obs_time = 0.0
+    setup_aborted = False
+    try:
+        while obs_time < observe_target:
+            frame, _ = feed.read()
+            if frame is None:
+                break
+            frame = _normalize_frame(frame)
+            if first_frame is None:
+                first_frame = frame.copy()
+            last_frame = frame.copy()
+            obs_time = round(obs_time + feed.dt, 6)
+            detections = detector.track(frame)
+            for d in detections:
+                paths[d.track_id].append((obs_time, d.x, d.y))
+            if not args.headless:
+                vis = _draw_calibration_observation(
+                    frame, detections, paths, obs_time, observe_target
+                )
+                cv2.imshow("Theiatron - learning this intersection", vis)
+                if (cv2.waitKey(1) & 0xFF) == ord("q"):
+                    setup_aborted = True
+                    break
+        if setup_aborted:
+            sys.exit("live setup cancelled")
+        if first_frame is None or last_frame is None:
+            sys.exit("no readable video frames")
+
+        tracks = list(paths.values())
+        moving = autocal.moving_tracks(tracks)
+        print(f"observed {len(tracks)} tracks; {len(moving)} moved far enough to calibrate")
+        try:
+            corridors = autocal.calibrate(tracks, (1280, 720))
+        except ValueError as e:
+            sys.exit(
+                f"automatic calibration failed: {e}. Use a longer/static elevated clip "
+                "or run --calibrate with a prepared config."
+            )
+
+        mask = autocal.road_mask_motion(tracks, (1280, 720))
+        road_backend = "motion"
+        if args.road_model in ("auto", "segformer"):
+            print("optional road segmentation requested; checking local model/cache...")
+            seg_mask, why = autocal.road_mask_segformer(first_frame)
+            if seg_mask is None:
+                print(f"segmentation unavailable; continuing with motion evidence ({why})")
+            else:
+                fraction = float((seg_mask > 0).mean())
+                if 0.05 <= fraction <= 0.6:
+                    mask = np.maximum(mask, seg_mask)
+                    road_backend = "motion + segformer"
+                else:
+                    print(f"segmentation rejected: implausible road coverage {fraction:.0%}")
+        for corridor in corridors:
+            corridor.count_line = list(
+                autocal.clip_line_to_mask(*corridor.count_line, mask)
+            )
+
+        quality = _calibration_quality(corridors, len(moving))
+        if quality["label"] == "low":
+            sys.exit(f"calibration confidence is too low: {quality}")
+        cfg.approaches = autocal.to_approach_configs(corridors, str(source.resolve()))
+        session_config = run_dir / "config.yaml"
+        save_config(cfg, session_config)
+        cv2.imwrite(str(run_dir / "road_mask.png"), mask)
+        overlay = _draw_calibration_result(last_frame, mask, moving, corridors, quality)
+        overlay_path = run_dir / "calibration.png"
+        cv2.imwrite(str(overlay_path), overlay)
+        print(f"stage 2/3: learned {len(corridors)} approaches "
+              f"(quality={quality['label']}, backend={road_backend})")
+        for c in corridors:
+            print(f"  {c.name:<6} phase={c.phase} tracks={len(c.tracks):>3} "
+                  f"line={c.count_line}")
+        print(f"review overlay: {overlay_path}")
+
+        if not args.headless:
+            cv2.imshow("Theiatron - learned intersection", overlay)
+            deadline = time.monotonic() + max(0.0, args.review_seconds)
+            while time.monotonic() < deadline:
+                key = cv2.waitKey(30) & 0xFF
+                if key in (ord("q"), 13, 32):
+                    break
+            cv2.destroyWindow("Theiatron - learned intersection")
+            cv2.destroyWindow("Theiatron - learning this intersection")
+
+        remaining = max(0.0, total_duration - obs_time) if total_duration else 0.0
+        minimum_fresh = min(20.0, eval_target * 0.25)
+        rewound = args.evaluation_scope == "full" or remaining < minimum_fresh
+        if rewound:
+            if args.evaluation_scope == "full":
+                print("rewinding for a fresh full-clip inference and comparison pass")
+            else:
+                print("clip has little unseen footage after calibration; rewinding for fresh inference")
+            feed.release()
+            feed = VideoFeed(str(source), cfg.vision.process_fps, loop=False)
+            detector.reset()
+            available_eval = total_duration or eval_target
+        else:
+            print(f"continuing into {remaining:.1f}s of footage not used for calibration")
+            available_eval = remaining
+        if available_eval and eval_target > available_eval:
+            print(f"evaluation shortened from {eval_target:.1f}s to available "
+                  f"{available_eval:.1f}s")
+            eval_target = available_eval
+
+        print(f"stage 3/3: live detection + controller comparison for up to "
+              f"{eval_target:.1f}s")
+        extractors = {
+            a.name: ArrivalExtractor(a, cfg.vision.min_track_age) for a in cfg.approaches
+        }
+        recorder = TrackRecorder()
+        claimed = set()
+        adaptive, fixed = build_engines(cfg)
+        names = [a.name for a in cfg.approaches]
+        record_path = run_dir / args.record if args.record else None
+        dashboard = Dashboard(
+            names, record_path, fps=1.0 / feed.dt, show=not args.headless
+        )
+        now = 0.0
+        frames_done = 0
+        all_events: list[tuple[float, str]] = []
+        wall_start = time.perf_counter()
+        last_annotated = None
+        try:
+            while now < eval_target:
+                frame, _ = feed.read()
+                if frame is None:
+                    break
+                frame = _normalize_frame(frame)
+                now = round(now + feed.dt, 6)
+                detections = detector.track(frame)
+                points = [(d.track_id, d.x, d.y) for d in detections]
+                recorder.update(now, points)
+                tick_events = []
+                for a in cfg.approaches:
+                    tick_events += extractors[a.name].update(now, points, claimed)
+                adaptive.tick(now, tick_events)
+                fixed.tick(now, tick_events)
+                all_events.extend(tick_events)
+
+                a_sum = summarize(adaptive, now)
+                f_sum = summarize(fixed, now)
+                a_waiting = sum(len(q.queue) for q in adaptive.queues.values())
+                f_waiting = sum(len(q.queue) for q in fixed.queues.values())
+                saved = total_censored_wait(fixed, now) - total_censored_wait(adaptive, now)
+                annotated = annotate_intersection(
+                    frame,
+                    detections,
+                    extractors,
+                    {name: adaptive.light_for(name) for name in names},
+                    {name: len(adaptive.queues[name].queue) for name in names},
+                )
+                last_annotated = annotated
+                canvas = dashboard.render(
+                    [annotated],
+                    {name: adaptive.light_for(name) for name in names},
+                    {name: len(adaptive.queues[name].queue) for name in names},
+                    {
+                        "theia_wait": a_sum["avg_wait_s"],
+                        "fixed_wait": f_sum["avg_wait_s"],
+                        "theia_waiting": a_waiting,
+                        "fixed_waiting": f_waiting,
+                        "time_saved_s": saved,
+                        "fixed_label": f"FIXED {cfg.signal.fixed_split:.0f}s",
+                        "ready": (
+                            now > 30.0
+                            and a_sum["arrivals"] >= MIN_COMPARISON_ARRIVALS
+                        ),
+                    },
+                    narrate(adaptive),
+                )
+                if not dashboard.display(canvas):
+                    break
+                frames_done += 1
+
+            # Hold a clean result card on screen and append it to the recorded
+            # dashboard. This gives a presenter time to talk through the
+            # measured outcome without racing the final video frame.
+            if last_annotated is not None and args.result_seconds > 0:
+                a_final = summarize(adaptive, now)
+                f_final = summarize(fixed, now)
+                saved_final = (
+                    total_censored_wait(fixed, now)
+                    - total_censored_wait(adaptive, now)
+                )
+                sample_ready = a_final["arrivals"] >= MIN_COMPARISON_ARRIVALS
+                if not sample_ready:
+                    result_text = (
+                        f"Inconclusive: {a_final['arrivals']} arrivals counted; "
+                        f"need {MIN_COMPARISON_ARRIVALS}"
+                    )
+                elif f_final["avg_wait_s"] > 0:
+                    reduction = 100.0 * (
+                        f_final["avg_wait_s"] - a_final["avg_wait_s"]
+                    ) / f_final["avg_wait_s"]
+                    result_text = (
+                        f"Result on this footage: {reduction:.0f}% less modeled "
+                        "average waiting"
+                        if reduction >= 0
+                        else f"Result on this footage: {-reduction:.0f}% more modeled waiting"
+                    )
+                else:
+                    result_text = "Result: no modeled queue formed in this footage segment"
+                final_stats = {
+                    "theia_wait": a_final["avg_wait_s"],
+                    "fixed_wait": f_final["avg_wait_s"],
+                    "theia_waiting": sum(len(q.queue) for q in adaptive.queues.values()),
+                    "fixed_waiting": sum(len(q.queue) for q in fixed.queues.values()),
+                    "time_saved_s": saved_final,
+                    "fixed_label": f"FIXED {cfg.signal.fixed_split:.0f}s",
+                    "ready": sample_ready,
+                }
+                hold_frames = max(1, round(args.result_seconds / feed.dt))
+                for _ in range(hold_frames):
+                    final_canvas = dashboard.render(
+                        [last_annotated],
+                        {name: adaptive.light_for(name) for name in names},
+                        {name: len(adaptive.queues[name].queue) for name in names},
+                        final_stats,
+                        result_text,
+                    )
+                    if not dashboard.display(final_canvas):
+                        break
+                    if not args.headless:
+                        time.sleep(feed.dt)
+        finally:
+            dashboard.close()
+
+        wall_time = max(time.perf_counter() - wall_start, 1e-9)
+        artifacts = _harvest_track_artifacts(extractors, recorder)
+        (run_dir / "tracks.json").write_text(json.dumps(artifacts))
+        event_name = args.record_arrivals or "events.json"
+        event_path = run_dir / event_name
+        event_meta = {
+            "kind": "live-video-analysis",
+            "config": str(session_config.resolve()),
+            "duration": now,
+            "model": cfg.vision.model,
+            "source": str(source.resolve()),
+            "source_sha256": source_hash,
+            "calibration_observe_s": round(obs_time, 3),
+            "calibration_quality": quality,
+            "evaluation_scope": "unseen" if not rewound else "full-fresh-pass",
+        }
+        save_events(all_events, event_path, meta=event_meta)
+        report = finish(cfg, adaptive, fixed, now, run_dir)
+        manifest = {
+            "source": event_meta["source"],
+            "source_sha256": source_hash,
+            "source_width": width,
+            "source_height": height,
+            "source_fps": native_fps,
+            "source_duration_s": round(total_duration, 3),
+            "process_fps": round(1.0 / feed.dt, 3),
+            "model": cfg.vision.model,
+            "device": cfg.vision.device,
+            "calibration": quality,
+            "road_mask_backend": road_backend,
+            "evaluation_duration_s": round(now, 3),
+            "evaluation_scope": event_meta["evaluation_scope"],
+            "events": len(all_events),
+            "processing_ticks_per_wall_second": round(frames_done / wall_time, 2),
+            "results": {
+                "sample_status": report["sample_status"],
+                "avg_wait_reduction_pct": report["avg_wait_reduction_pct"],
+                "p95_wait_reduction_pct": report["p95_wait_reduction_pct"],
+            },
+        }
+        (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
+        print(f"processed {frames_done} fresh inference ticks in {wall_time:.1f}s wall "
+              f"({frames_done / wall_time:.1f} ticks/s)")
+        print(f"live run complete: {run_dir}")
+        print(f"replay: python run_demo.py --replay {event_path}")
+    finally:
+        feed.release()
+        if not args.headless:
+            cv2.destroyAllWindows()
 
 
 def run_live(args):
@@ -338,7 +875,8 @@ def run_live(args):
     from theiatron.detection import VehicleDetector
     from theiatron.feeds import VideoFeed
 
-    cfg = load_config(args.config)
+    cfg_path = config_path(args)
+    cfg = load_config(cfg_path)
     if args.model:
         cfg.vision.model = args.model
     if args.device:
@@ -399,12 +937,13 @@ def run_live(args):
     dash = Dashboard(names, record_path, cfg.vision.process_fps, show=not args.headless)
 
     dt = 1.0 / cfg.vision.process_fps
+    duration = args.duration if args.duration is not None else 120.0
     now = 0.0
     all_events: list[tuple[float, str]] = []
     t_wall = time.time()
     frames_done = 0
     try:
-        while now < args.duration:
+        while now < duration:
             now = round(now + dt, 6)
             tick_events: list[tuple[float, str]] = []
             tile_frames = []
@@ -448,6 +987,13 @@ def run_live(args):
             stats = {
                 "theia_wait": a_sum["avg_wait_s"],
                 "fixed_wait": f_sum["avg_wait_s"],
+                "theia_waiting": sum(len(q.queue) for q in adaptive.queues.values()),
+                "fixed_waiting": sum(len(q.queue) for q in fixed.queues.values()),
+                "time_saved_s": (
+                    total_censored_wait(fixed, now)
+                    - total_censored_wait(adaptive, now)
+                ),
+                "fixed_label": f"FIXED {cfg.signal.fixed_split:.0f}s",
                 # Early numbers are startup noise; hold the verdict back
                 # until both controllers have served a fair sample.
                 "ready": now > 60.0 and f_sum["served"] >= 15,
@@ -478,7 +1024,7 @@ def run_live(args):
           f"{out_dir / 'tracks.json'}")
     if args.record_arrivals:
         save_events(all_events, out_dir / args.record_arrivals,
-                    meta={"config": str(args.config), "duration": now,
+                    meta={"config": str(cfg_path), "duration": now,
                           "model": cfg.vision.model})
         print(f"arrivals: {out_dir / args.record_arrivals}")
     finish(cfg, adaptive, fixed, now, out_dir)
@@ -486,18 +1032,30 @@ def run_live(args):
 
 def main():
     ap = argparse.ArgumentParser(description="Theiatron demo")
-    ap.add_argument("--config", default="configs/approaches.yaml")
-    ap.add_argument("--duration", type=float, default=120.0,
-                    help="seconds of video time to simulate")
+    ap.add_argument("--config", help=f"configuration YAML (default: {DEFAULT_CONFIG}; "
+                    "live-video mode defaults to configs/intersection.yaml)")
+    ap.add_argument("--duration", type=float,
+                    help="seconds of video time to evaluate (default: 120; replay uses metadata)")
     ap.add_argument("--replay", help="arrival-events JSON; skips vision entirely")
+    ap.add_argument("--video", help="new intersection footage to analyze with fresh inference")
+    ap.add_argument("--live-demo", action="store_true",
+                    help="learn --video, then run live detection and A/B control")
     ap.add_argument("--calibrate", metavar="APPROACH",
                     help="interactively set the count line for one approach")
     ap.add_argument("--auto-calibrate", action="store_true",
                     help="learn approaches automatically by watching traffic")
-    ap.add_argument("--observe", type=float, default=90.0,
-                    help="seconds of traffic to watch during --auto-calibrate")
+    ap.add_argument("--observe", type=float, default=180.0,
+                    help="maximum seconds of traffic to watch during calibration")
     ap.add_argument("--road-model", choices=("auto", "motion", "segformer"),
-                    default="auto", help="road-surface mask backend")
+                    default="motion", help="road-surface mask backend (motion is offline/reliable)")
+    ap.add_argument("--review-seconds", type=float, default=3.0,
+                    help="seconds to show the learned layout before live evaluation")
+    ap.add_argument("--result-seconds", type=float, default=8.0,
+                    help="seconds to hold the final result card")
+    ap.add_argument("--evaluation-scope", choices=("full", "unseen"), default="full",
+                    help="fresh full-clip pass (stage default) or only footage after calibration")
+    ap.add_argument("--run-name",
+                    help="live run directory name under --out (default: timestamped)")
     ap.add_argument("--record", default="annotated.mp4",
                     help="dashboard MP4 filename (in --out dir); '' disables")
     ap.add_argument("--record-arrivals", default="events.json",
@@ -510,6 +1068,8 @@ def main():
 
     if args.replay:
         run_replay(args)
+    elif args.live_demo or args.video:
+        run_live_demo(args)
     elif args.auto_calibrate:
         run_autocal(args)
     elif args.calibrate:

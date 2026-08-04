@@ -7,6 +7,8 @@ from pathlib import Path
 
 from .engine import IntersectionEngine
 
+MIN_COMPARISON_ARRIVALS = 10
+
 
 def _percentile(values: list[float], pct: float) -> float:
     """Linear-interpolated percentile; avoids a hard numpy dependency here."""
@@ -20,6 +22,20 @@ def _percentile(values: list[float], pct: float) -> float:
     hi = min(lo + 1, len(vals) - 1)
     frac = rank - lo
     return vals[lo] * (1 - frac) + vals[hi] * frac
+
+
+def total_censored_wait(engine: IntersectionEngine, end_time: float) -> float:
+    """Total vehicle-seconds accumulated through ``end_time``.
+
+    Departed vehicles contribute their completed queue wait; vehicles still
+    queued contribute their wait so far. Comparing this value between shadow
+    controllers gives an intuitive live "vehicle-seconds saved" counter.
+    """
+    total = 0.0
+    for q in engine.queues.values():
+        total += sum(v.wait() for v in q.departed)
+        total += sum(v.wait(end_time) for v in q.queue)
+    return total
 
 
 def summarize(engine: IntersectionEngine, end_time: float) -> dict:
@@ -71,7 +87,17 @@ def comparison_report(adaptive: dict, fixed: dict) -> tuple[str, dict]:
         "fixed": fixed,
         "avg_wait_reduction_pct": _reduction("avg_wait_s"),
         "p95_wait_reduction_pct": _reduction("p95_wait_s"),
+        "sample_status": (
+            "ready" if adaptive["arrivals"] >= MIN_COMPARISON_ARRIVALS
+            else "inconclusive"
+        ),
     }
+
+    def _change(reduction: float) -> str:
+        # The table expresses change in the adaptive value relative to fixed,
+        # so a positive reduction is displayed as a negative change. Avoid the
+        # distracting "-0.0%" result on empty or identical samples.
+        return "0.0%" if reduction == 0 else f"{-reduction:+.1f}%"
 
     lines = [
         "# Theiatron — Adaptive vs Fixed-Timer Comparison",
@@ -79,12 +105,20 @@ def comparison_report(adaptive: dict, fixed: dict) -> tuple[str, dict]:
         "Both controllers were run on the **identical** vision-derived arrival",
         "stream; the only difference is the signal control policy.",
         "",
+    ]
+    if data["sample_status"] == "inconclusive":
+        lines += [
+            f"**Inconclusive sample:** only {adaptive['arrivals']} arrivals were counted; ",
+            f"at least {MIN_COMPARISON_ARRIVALS} are required before presenting a comparison.",
+            "",
+        ]
+    lines += [
         "| Metric | Fixed timer | Theiatron adaptive | Change |",
         "|---|---|---|---|",
         f"| Average wait | {fixed['avg_wait_s']} s | {adaptive['avg_wait_s']} s |"
-        f" **{-data['avg_wait_reduction_pct']:+.1f}%** |",
+        f" **{_change(data['avg_wait_reduction_pct'])}** |",
         f"| 95th percentile wait | {fixed['p95_wait_s']} s | {adaptive['p95_wait_s']} s |"
-        f" **{-data['p95_wait_reduction_pct']:+.1f}%** |",
+        f" **{_change(data['p95_wait_reduction_pct'])}** |",
         f"| Worst single wait | {fixed['max_wait_s']} s | {adaptive['max_wait_s']} s | |",
         f"| Vehicles served | {fixed['served']} | {adaptive['served']} | |",
         f"| Phase switches | {fixed['phase_switches']} | {adaptive['phase_switches']} | |",

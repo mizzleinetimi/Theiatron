@@ -50,6 +50,10 @@ class _TrackState:
     pos: tuple[float, float]
     age: int = 1
     missed: int = 0
+    # Last known non-zero side of the count line. A detector sample can land
+    # exactly on the line; retaining the prior side prevents that sample from
+    # swallowing an otherwise valid approach -> far-side crossing.
+    side: int = 0
 
 
 def _sign(x: float) -> int:
@@ -68,6 +72,16 @@ def _segments_cross(p, q, a, b) -> bool:
     return (
         _orient(a, b, p) * _orient(a, b, q) < 0
         and _orient(p, q, a) * _orient(p, q, b) < 0
+    )
+
+
+def _point_on_segment(p, a, b, eps: float = 1e-6) -> bool:
+    """Whether p lies on the finite segment a-b (within floating tolerance)."""
+    cross = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
+    return (
+        abs(cross) <= eps
+        and min(a[0], b[0]) - eps <= p[0] <= max(a[0], b[0]) + eps
+        and min(a[1], b[1]) - eps <= p[1] <= max(a[1], b[1]) + eps
     )
 
 
@@ -136,12 +150,16 @@ class ArrivalExtractor:
             seen.add(tid)
             state = self.tracks.get(tid)
             if state is None:
-                self.tracks[tid] = _TrackState(pt)
+                self.tracks[tid] = _TrackState(pt, side=_sign(self._side(pt)))
                 continue
             prev = state.pos
+            prev_side = state.side
+            current_side = _sign(self._side(pt))
             state.pos = pt
             state.age += 1
             state.missed = 0
+            if current_side != 0:
+                state.side = current_side
             if tid in self.counted or state.age < self.min_track_age:
                 continue
             if claimed is not None and tid in claimed:
@@ -151,9 +169,15 @@ class ArrivalExtractor:
             # far -> approach and never matches, and traffic in other parts
             # of the frame never touches the segment itself.
             if (
-                _sign(self._side(prev)) == self.approach_sign
-                and _sign(self._side(pt)) == -self.approach_sign
-                and _segments_cross(prev, pt, self.p1, self.p2)
+                prev_side == self.approach_sign
+                and current_side == -self.approach_sign
+                # If the immediately previous sample was exactly on the line,
+                # the two-frame segment merely touches its endpoint. The
+                # retained non-zero side still establishes a valid crossing.
+                and (
+                    _segments_cross(prev, pt, self.p1, self.p2)
+                    or _point_on_segment(prev, self.p1, self.p2)
+                )
             ):
                 self.counted.add(tid)
                 self.last_counted.add(tid)

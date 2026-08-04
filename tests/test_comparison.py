@@ -71,3 +71,12 @@ def test_comparison_report_renders():
     assert data["avg_wait_reduction_pct"] == round(
         100 * (fixed["avg_wait_s"] - adaptive["avg_wait_s"]) / fixed["avg_wait_s"], 1
     )
+
+
+def test_comparison_report_does_not_render_negative_zero():
+    empty = run(AdaptiveController, [])
+    md, data = comparison_report(empty, empty)
+    assert data["avg_wait_reduction_pct"] == 0.0
+    assert data["sample_status"] == "inconclusive"
+    assert "Inconclusive sample" in md
+    assert "-0.0%" not in md

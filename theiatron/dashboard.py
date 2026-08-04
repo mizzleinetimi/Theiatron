@@ -178,25 +178,43 @@ def _draw_intersection(panel, cx, cy, lights, waiting):
         cv2.putText(panel, lbl, (px, py), cv2.FONT_HERSHEY_SIMPLEX, 0.6, DIM, 1)
 
 
-def _draw_comparison(panel, y, theia, fixed, ready):
+def _draw_comparison(panel, y, stats):
+    theia = stats.get("theia_wait")
+    fixed = stats.get("fixed_wait")
+    ready = stats.get("ready", False)
     cv2.putText(panel, "AVERAGE WAIT PER CAR", (24, y),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, ACCENT, 1)
     y += 30
     scale_max = max(theia or 0, fixed or 0, 1.0)
-    for label, val, color in (("THEIATRON", theia, GOOD), ("OLD TIMER", fixed, DIM)):
+    fixed_label = stats.get("fixed_label", "FIXED TIMER")
+    for label, val, color in (("THEIATRON", theia, GOOD), (fixed_label, fixed, DIM)):
         txt = f"{label}  {val:.0f}s" if val is not None else f"{label}  --"
         cv2.putText(panel, txt, (24, y), cv2.FONT_HERSHEY_DUPLEX, 0.65, FG, 1)
         bar = int(250 * (val or 0) / scale_max)
-        cv2.rectangle(panel, (24, y + 8), (24 + bar, y + 24), color, -1)
-        y += 52
+        cv2.rectangle(panel, (24, y + 7), (24 + bar, y + 20), color, -1)
+        y += 44
     if ready and fixed and theia is not None and fixed > theia:
         pct = 100.0 * (fixed - theia) / fixed
-        cv2.putText(panel, f"{pct:.0f}% LESS WAITING", (24, y + 8),
+        cv2.putText(panel, f"{pct:.0f}% LESS WAITING", (24, y + 6),
                     cv2.FONT_HERSHEY_DUPLEX, 0.95, GOOD, 2)
     else:
-        cv2.putText(panel, "measuring...", (24, y + 8),
+        cv2.putText(panel, "measuring...", (24, y + 6),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, DIM, 1)
-    return y + 40
+    y += 30
+    a_waiting = stats.get("theia_waiting")
+    f_waiting = stats.get("fixed_waiting")
+    if a_waiting is not None and f_waiting is not None:
+        cv2.putText(panel, f"WAITING NOW   {a_waiting} vs {f_waiting}", (24, y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.58, FG, 1)
+        y += 22
+    saved = stats.get("time_saved_s")
+    if saved is not None:
+        color = GOOD if saved > 0 else DIM
+        label = f"{saved:.0f} VEHICLE-SECONDS SAVED" if saved >= 0 else (
+            f"{-saved:.0f} VEHICLE-SECONDS BEHIND"
+        )
+        cv2.putText(panel, label, (24, y), cv2.FONT_HERSHEY_SIMPLEX, 0.56, color, 1)
+    return y + 22
 
 
 class Dashboard:
@@ -218,8 +236,7 @@ class Dashboard:
         cv2.putText(panel, "traffic lights that see", (24, 70),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.55, FG, 1)
         _draw_intersection(panel, PANEL_W // 2, 250, lights, waiting)
-        _draw_comparison(panel, 450, stats.get("theia_wait"), stats.get("fixed_wait"),
-                         stats.get("ready", False))
+        _draw_comparison(panel, 450, stats)
         # Narration: what the AI is doing right now, in plain words.
         cv2.rectangle(panel, (16, self.canvas_h - 84), (PANEL_W - 16, self.canvas_h - 16),
                       (40, 38, 34), -1)

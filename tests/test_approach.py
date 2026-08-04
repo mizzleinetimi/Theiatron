@@ -85,6 +85,20 @@ def test_crossing_beyond_segment_end_not_counted():
     assert events == []
 
 
+def test_sample_exactly_on_line_still_counts_crossing():
+    ex = make_extractor(min_age=1)
+    events = drive_across(ex, 12, [80, 100, 105])
+    assert events == [(0.2, "north")]
+
+
+def test_sample_on_infinite_extension_still_does_not_count():
+    ex = make_extractor(min_age=1)
+    events = []
+    for i, y in enumerate([80, 100, 105]):
+        events += ex.update(i * 0.1, [(13, 300.0, y)])
+    assert events == []
+
+
 def test_missing_calibration_raises():
     cfg = ApproachConfig(name="x", video="", phase="NS")
     with pytest.raises(ValueError):

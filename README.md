@@ -37,7 +37,7 @@ Recorded vehicles cannot react to our simulated light. So:
 We claim *real-video demand, simulated service, controlled A/B* — not
 closed-loop control of real traffic.
 
-## Auto-calibration: point it at any intersection
+## Auto-calibration: point it at a new intersection
 
 Theiatron can learn an intersection's layout by watching it — no clicks:
 
@@ -60,10 +60,31 @@ Cityscapes-trained SegFormer segmentation of visible asphalt
 tree-shadowed stretches on elevated views, so motion evidence is always
 trusted.
 
-Validation on the demo intersection: auto-calibration recovered all 4
-approaches with the same compass names and phase pairing as the hand
-calibration, captured 36/41 of the hand-config's arrivals with zero human
-input, and the resulting A/B still shows a 30% average-wait reduction.
+## Live demo on new footage
+
+The stage workflow runs the underlying perception system on a new video; it
+does not replay prepared arrivals:
+
+```bash
+bash scripts/live_demo.sh path/to/intersection.mp4
+```
+
+The opening observation segment is processed by YOLO + ByteTrack to learn the
+traffic corridors and counting lines. The stage default then rewinds and runs a
+fresh inference pass over the full clip, counts arrivals, and drives adaptive
+and equal-cycle fixed-timer simulations side by side. This lets the whole clip
+contribute while still performing every detection live; short or sparse clips
+can still produce an inconclusive sample. Use `--evaluation-scope unseen` when
+a held-out post-calibration segment is desired.
+
+Each run writes a timestamped directory under `out/` containing the learned
+config, calibration overlay and road mask, annotated dashboard video, arrival
+events, track motions, reproducibility manifest, and comparison report. See
+`DEMO.md` for the stage checklist and supported-footage constraints.
+
+Validation on the demo intersection: a full-clip observation recovered all 4
+approaches, count-line geometry, compass names, and phase pairing from the
+checked-in auto-calibration with zero human input.
 
 ## Quickstart
 
@@ -78,7 +99,7 @@ python run_demo.py --config configs/intersection.yaml --duration 180  # single-c
 python run_demo.py --duration 120      # 4-camera variant (configs/approaches.yaml)
 python run_demo.py --replay out/events.json   # reproduce numbers, no vision
 python benchmark_edge.py               # ONNX CPU benchmark
-pytest                                  # 20+ unit tests
+pytest                                  # 37 unit tests
 ```
 
 ## Architecture
@@ -101,12 +122,12 @@ control policy, and are unit-tested.
 ## Results
 
 **Single elevated camera, one real intersection** (`configs/intersection.yaml`,
-Pexels 13905519, 180 s, 41 vehicles — the primary demo):
+Pexels 13905519, 180 s, 40 vehicles — the primary checked-in run):
 
 | Metric | Fixed timer | Theiatron adaptive | Change |
 |---|---|---|---|
-| Average wait | 10.6 s | 5.9 s | **−44.4%** |
-| 95th-percentile wait | 36.7 s | 17.9 s | **−51.2%** |
+| Average wait | 10.9 s | 6.04 s | **−44.6%** |
+| 95th-percentile wait | 36.73 s | 17.96 s | **−51.1%** |
 | Worst single wait | 40.9 s | 20.7 s | — |
 
 **Four independent approach cameras** (`configs/approaches.yaml`, 4 city
