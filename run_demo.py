@@ -421,14 +421,75 @@ def _sha256(path: Path) -> str:
 
 def _new_run_dir(root: str | Path, requested_name: str | None = None) -> Path:
     from datetime import datetime
+    import re
 
     base = Path(root)
     name = requested_name or datetime.now().strftime("live-%Y%m%d-%H%M%S")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name):
+        raise ValueError(
+            "--run-name must contain only letters, numbers, '.', '_' or '-'"
+        )
     out = base / name
     if out.exists():
         raise FileExistsError(f"run output already exists: {out}")
     out.mkdir(parents=True)
     return out
+
+
+def _export_3d_timeline(event_path: Path, duration: float, config_path_: Path,
+                        tracks_path: Path, timeline_path: Path) -> tuple[bool, str]:
+    """Build the run-specific timeline consumed by the browser 3D viewer."""
+    import subprocess
+
+    exporter = Path(__file__).resolve().parent / "scripts" / "export_timeline.py"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(exporter),
+            str(event_path),
+            str(duration),
+            str(config_path_),
+            str(tracks_path),
+            str(timeline_path),
+        ],
+        text=True,
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        return False, (proc.stderr.strip() or proc.stdout.strip() or "unknown export error")
+    return True, proc.stdout.strip()
+
+
+def _transcode_3d_footage(raw_path: Path, output_path: Path) -> tuple[bool, str]:
+    """Convert OpenCV's staging video to browser-compatible H.264."""
+    import shutil
+    import subprocess
+
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        return False, "ffmpeg is required to create the browser 3D footage"
+    proc = subprocess.run(
+        [
+            ffmpeg,
+            "-hide_banner",
+            "-loglevel", "error",
+            "-y",
+            "-i", str(raw_path),
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "23",
+            "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
+            "-an",
+            str(output_path),
+        ],
+        text=True,
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        return False, (proc.stderr.strip() or "unknown ffmpeg error")
+    raw_path.unlink()
+    return True, str(output_path)
 
 
 def _draw_calibration_observation(frame, detections, paths, elapsed, target):
@@ -567,7 +628,7 @@ def run_live_demo(args):
 
     try:
         run_dir = _new_run_dir(args.out, args.run_name)
-    except FileExistsError as e:
+    except (FileExistsError, ValueError) as e:
         sys.exit(str(e))
     source_hash = _sha256(source)
     observe_target = min(args.observe, total_duration) if total_duration else args.observe
@@ -681,7 +742,11 @@ def run_live_demo(args):
                 print("clip has little unseen footage after calibration; rewinding for fresh inference")
             feed.release()
             feed = VideoFeed(str(source), cfg.vision.process_fps, loop=False)
-            detector.reset()
+            # A truly new detector matters here. Ultralytics registers tracker
+            # callbacks on the model object; clearing only its predictor and
+            # reusing it can retain callbacks and recycle track IDs during the
+            # second pass, merging many vehicles into a handful of tracks.
+            detector = VehicleDetector(cfg.vision)
             available_eval = total_duration or eval_target
         else:
             print(f"continuing into {remaining:.1f}s of footage not used for calibration")
@@ -701,6 +766,16 @@ def run_live_demo(args):
         adaptive, fixed = build_engines(cfg)
         names = [a.name for a in cfg.approaches]
         record_path = run_dir / args.record if args.record else None
+        footage_raw_path = run_dir / "footage-raw.mp4"
+        footage_path = run_dir / "footage.mp4"
+        footage_writer = cv2.VideoWriter(
+            str(footage_raw_path),
+            cv2.VideoWriter_fourcc(*"mp4v"),
+            1.0 / feed.dt,
+            (1280, 720),
+        )
+        if not footage_writer.isOpened():
+            sys.exit(f"cannot create 3D footage asset: {footage_raw_path}")
         dashboard = Dashboard(
             names, record_path, fps=1.0 / feed.dt, show=not args.headless
         )
@@ -739,6 +814,7 @@ def run_live_demo(args):
                     {name: len(adaptive.queues[name].queue) for name in names},
                 )
                 last_annotated = annotated
+                footage_writer.write(annotated)
                 canvas = dashboard.render(
                     [annotated],
                     {name: adaptive.light_for(name) for name in names},
@@ -813,10 +889,17 @@ def run_live_demo(args):
                         time.sleep(feed.dt)
         finally:
             dashboard.close()
+            footage_writer.release()
 
         wall_time = max(time.perf_counter() - wall_start, 1e-9)
+        footage_ok, footage_message = _transcode_3d_footage(
+            footage_raw_path, footage_path
+        )
+        if not footage_ok:
+            print(f"warning: 3D footage conversion failed: {footage_message}")
         artifacts = _harvest_track_artifacts(extractors, recorder)
-        (run_dir / "tracks.json").write_text(json.dumps(artifacts))
+        tracks_path = run_dir / "tracks.json"
+        tracks_path.write_text(json.dumps(artifacts))
         event_name = args.record_arrivals or "events.json"
         event_path = run_dir / event_name
         event_meta = {
@@ -832,6 +915,22 @@ def run_live_demo(args):
         }
         save_events(all_events, event_path, meta=event_meta)
         report = finish(cfg, adaptive, fixed, now, run_dir)
+        timeline_path = run_dir / "timeline.js"
+        timeline_ok, timeline_message = _export_3d_timeline(
+            event_path, now, session_config, tracks_path, timeline_path
+        )
+        if timeline_ok:
+            print(timeline_message)
+        else:
+            print(f"warning: 3D timeline export failed: {timeline_message}")
+        repo_root = Path(__file__).resolve().parent
+        default_out = (repo_root / "out").resolve()
+        viewer_run = (
+            f"out/{run_dir.name}" if run_dir.parent.resolve() == default_out else None
+        )
+        viewer_path = (
+            f"viz/index.html?run={viewer_run}" if viewer_run else None
+        )
         manifest = {
             "source": event_meta["source"],
             "source_sha256": source_hash,
@@ -853,12 +952,20 @@ def run_live_demo(args):
                 "avg_wait_reduction_pct": report["avg_wait_reduction_pct"],
                 "p95_wait_reduction_pct": report["p95_wait_reduction_pct"],
             },
+            "three_d": {
+                "ready": timeline_ok and footage_ok,
+                "timeline": str(timeline_path.resolve()) if timeline_ok else None,
+                "footage": str(footage_path.resolve()) if footage_ok else None,
+                "viewer": viewer_path if timeline_ok and footage_ok else None,
+            },
         }
         (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
         print(f"processed {frames_done} fresh inference ticks in {wall_time:.1f}s wall "
               f"({frames_done / wall_time:.1f} ticks/s)")
         print(f"live run complete: {run_dir}")
         print(f"replay: python run_demo.py --replay {event_path}")
+        if viewer_path and timeline_ok and footage_ok:
+            print(f"3D viewer: {viewer_path}")
     finally:
         feed.release()
         if not args.headless:

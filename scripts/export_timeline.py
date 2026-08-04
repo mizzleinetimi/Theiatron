@@ -5,7 +5,8 @@ Writes viz/timeline.js (a `const TIMELINE = {...}` script, not JSON, so the
 viewer works from file:// with no web server). For each scenario it records
 every vehicle's arrival/departure time and every signal change-point.
 
-Usage: .venv/bin/python scripts/export_timeline.py [out/events.json] [duration] [config]
+Usage: .venv/bin/python scripts/export_timeline.py \
+    [events.json] [duration] [config] [tracks.json] [timeline.js]
 """
 import json
 import sys
@@ -22,6 +23,8 @@ events_path = sys.argv[1] if len(sys.argv) > 1 else "out/events.json"
 duration = float(sys.argv[2]) if len(sys.argv) > 2 else 180.0
 events, _meta = load_events(events_path)
 app = load_config(sys.argv[3] if len(sys.argv) > 3 else "configs/approaches.yaml")
+tracks_path = Path(sys.argv[4]) if len(sys.argv) > 4 else Path(events_path).with_name("tracks.json")
+timeline_path = Path(sys.argv[5]) if len(sys.argv) > 5 else Path("viz/timeline.js")
 names = [a.name for a in app.approaches]
 
 OPP = {"north": "south", "south": "north", "east": "west", "west": "east"}
@@ -53,9 +56,9 @@ EXTRA_MOTIONS: list = []
 
 def load_motions():
     """Per-car real motion: spawn lead, crossing duration, exit arm (turn)."""
-    path = Path("out/tracks.json")
+    path = tracks_path
     if not path.exists():
-        print("no out/tracks.json - cars default to straight-through at default pace")
+        print(f"no {path} - cars default to straight-through at default pace")
         return {}
     raw = json.loads(path.read_text())
     counted = raw["counted"] if isinstance(raw, dict) else raw
@@ -253,6 +256,9 @@ def run_scenario(ctrl_cls):
 
 timeline = {
     "duration": duration,
+    "arrivals": len(events),
+    "sample_status": "ready" if len(events) >= 10 else "inconclusive",
+    "source": _meta.get("source"),
     "approaches": names,
     # One shared elevated camera -> footage is a single wide view;
     # otherwise it's the 2x2 grid of per-approach tiles.
@@ -266,10 +272,13 @@ timeline = {
     "theiatron": run_scenario(AdaptiveController),
     "fixed": run_scenario(FixedController),
 }
-out = Path("viz/timeline.js")
+out = timeline_path
 out.parent.mkdir(exist_ok=True)
 out.write_text("const TIMELINE = " + json.dumps(timeline) + ";\n")
-red = 100 * (timeline["fixed"]["avg_wait"] - timeline["theiatron"]["avg_wait"]) / timeline["fixed"]["avg_wait"]
+fixed_wait = timeline["fixed"]["avg_wait"]
+red = (100 * (fixed_wait - timeline["theiatron"]["avg_wait"]) / fixed_wait
+       if fixed_wait else 0.0)
+verdict = f"{red:.0f}% less waiting" if red >= 0 else f"{-red:.0f}% more waiting"
 print(f"wrote {out}: {len(timeline['theiatron']['vehicles'])} vehicles, "
       f"theiatron {timeline['theiatron']['avg_wait']}s vs fixed {timeline['fixed']['avg_wait']}s "
-      f"({red:.0f}% less waiting)")
+      f"({verdict})")

@@ -393,7 +393,10 @@ function makeBlobTexture() {
 }
 
 function loadCarModels() {
-  const loader = new THREE.GLTFLoader();
+  const manager = new THREE.LoadingManager();
+  const whitePixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAE0lEQVR4nGP8//8/AwMDEwMYAAAkBgMBXaJOiAAAAABJRU5ErkJggg==";
+  manager.setURLModifier((url) => url.endsWith("Textures/colormap.png") ? whitePixel : url);
+  const loader = new THREE.GLTFLoader(manager);
   const jobs = Object.entries(CAR_GLB_B64).map(([name, b64]) =>
     new Promise((resolve) => {
       const bin = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
@@ -606,7 +609,7 @@ function updateScenario(S, t) {
 // --- footage strip -----------------------------------------------------------
 const FOOT_TILE = { north: [0, 0], south: [640, 0], east: [0, 360], west: [640, 360] };
 const footVideo = document.createElement("video");
-footVideo.src = "footage.mp4";
+footVideo.src = window.THEIATRON_FOOTAGE_SRC || "footage.mp4";
 footVideo.muted = true;
 footVideo.preload = "auto";
 const footCanvas = document.getElementById("footage");
@@ -792,8 +795,17 @@ function frame(ts) {
   document.getElementById("servedL").textContent = L.served;
   document.getElementById("servedR").textContent = R.served;
   const verdict = document.getElementById("verdictTop");
-  if (t > 45 && R.avg > 0.5 && L.avg < R.avg) {
+  const enoughDemand = (TIMELINE.sample_status ||
+    ((TIMELINE.arrivals || TIMELINE.theiatron.vehicles.length) >= 10 ? "ready" : "inconclusive")) === "ready";
+  if (!enoughDemand && t > 10) {
+    verdict.textContent = `INCONCLUSIVE — ${TIMELINE.arrivals || TIMELINE.theiatron.vehicles.length} ARRIVALS`;
+    verdict.style.color = "#ffb724";
+  } else if (t > 45 && R.avg > 0.5 && L.avg < R.avg) {
     verdict.textContent = `${Math.round(100 * (R.avg - L.avg) / R.avg)}% LESS WAITING WITH THEIATRON`;
+    verdict.style.color = "#46c46e";
+  } else if (t > 45 && R.avg > 0.5 && L.avg > R.avg) {
+    verdict.textContent = `${Math.round(100 * (L.avg - R.avg) / R.avg)}% MORE WAITING ON THIS SAMPLE`;
+    verdict.style.color = "#e34a3f";
   } else verdict.textContent = "";
 
   // camera: preset flight > follow > user orbit + idle auto-rotate

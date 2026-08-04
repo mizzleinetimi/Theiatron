@@ -27,7 +27,7 @@
   <h1>DIGITAL TWIN</h1>
   <span class="sub">The ground is the real footage, projected onto the 3D plane.
     Every model car drives on top of its real self &mdash; pure replay, no simulation.</span>
-  <a href="index.html" style="margin-left:auto; color:#ffb724; font-size:13px; text-decoration:none">&larr; back to A/B view</a>
+  <a id="backLink" href="index.html" style="margin-left:auto; color:#ffb724; font-size:13px; text-decoration:none">&larr; back to A/B view</a>
 </div>
 <canvas id="c"></canvas>
 <div id="legend">each 3D car should sit on its own image &mdash; that alignment IS the accuracy proof &middot; drag to orbit, scroll to zoom</div>
@@ -46,7 +46,14 @@
 <script src="vendor/OrbitControls.js"></script>
 <script src="vendor/GLTFLoader.js"></script>
 <script src="vendor/cars.js"></script>
-<script src="timeline.js"></script>
-<script src="twin.js"></script>
+<script>
+  const runParam = new URLSearchParams(location.search).get("run") || "";
+  const runOK = /^out\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(runParam);
+  window.THEIATRON_FOOTAGE_SRC = runOK ? `../${runParam}/footage.mp4` : "footage.mp4";
+  document.getElementById("backLink").href = runOK
+    ? `index.html?run=${encodeURIComponent(runParam)}` : "index.html";
+  document.write(`<script src="${runOK ? `../${runParam}/timeline.js` : "timeline.js?v=twin2"}"><\/script>`);
+</script>
+<script src="twin.js?v=twin6"></script>
 </body>
 </html>

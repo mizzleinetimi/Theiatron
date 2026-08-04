@@ -60,7 +60,7 @@
         <div class="sub">avg wait &middot; <span id="servedL">0</span> cars through</div>
       </div>
       <div class="scorecard" id="scoreR">
-        <div class="name">OLD FIXED TIMER (reality)</div>
+        <div class="name">OLD FIXED TIMER (baseline)</div>
         <div class="wait" id="waitR">0.0s</div>
         <div class="sub">avg wait &middot; <span id="servedR">0</span> cars through</div>
       </div>
@@ -69,14 +69,14 @@
   </div>
   <div id="footwrap">
     <canvas id="footage"></canvas>
-    <div id="footcap">REAL FOOTAGE &mdash; today's blind lights. These cars feed the OLD TIMER sim below-right;
+    <div id="footcap">REAL FOOTAGE &mdash; detected demand. These cars feed the FIXED TIMER sim below-right;
       <span>the same cars are replayed with Theiatron on the left.</span></div>
   </div>
 </div>
 <canvas id="c"></canvas>
 <div class="divider"></div>
 <div class="halflabel" id="labL">THEIATRON &mdash; the same streets, with eyes</div>
-<div class="halflabel" id="labR">OLD FIXED TIMER &mdash; reality, as filmed</div>
+<div class="halflabel" id="labR">OLD FIXED TIMER &mdash; equal-cycle baseline</div>
 <div id="legend">cars tint red as they wait &middot; tags match the footage &middot; <b style="color:#ffb724">click any car to follow it in both worlds</b> &middot; drag to orbit, scroll to zoom</div>
 <div id="controls">
   <button id="play">&#9654; Play</button>
@@ -93,7 +93,7 @@
     <button data-cam="high" title="three-quarter view">&#9968; High</button>
     <button data-cam="top" title="top-down">&#8859; Top</button>
     <button data-cam="low" title="street level">&#9670; Low</button>
-    <a href="twin.html" style="margin-left:10px; color:#ffb724; font-size:13px; text-decoration:none">TWIN VIEW &rarr;</a>
+    <a id="twinLink" href="twin.html" style="margin-left:10px; color:#ffb724; font-size:13px; text-decoration:none">TWIN VIEW &rarr;</a>
   </span>
   <span id="followHint" style="font-family:var(--mono); font-size:11.5px; color:var(--acc); margin-left:10px"></span>
 </div>
@@ -101,7 +101,14 @@
 <script src="vendor/OrbitControls.js"></script>
 <script src="vendor/GLTFLoader.js"></script>
 <script src="vendor/cars.js"></script>
-<script src="timeline.js?v=twin1"></script>
-<script src="app.js?v=twin1"></script>
+<script>
+  const runParam = new URLSearchParams(location.search).get("run") || "";
+  const runOK = /^out\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(runParam);
+  window.THEIATRON_FOOTAGE_SRC = runOK ? `../${runParam}/footage.mp4` : "footage.mp4";
+  document.getElementById("twinLink").href = runOK
+    ? `twin.html?run=${encodeURIComponent(runParam)}` : "twin.html";
+  document.write(`<script src="${runOK ? `../${runParam}/timeline.js` : "timeline.js?v=twin2"}"><\/script>`);
+</script>
+<script src="app.js?v=twin5"></script>
 </body>
 </html>

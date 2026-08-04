@@ -98,7 +98,7 @@ ground.position.set(minX + GW / 2, 0, minZ + GH / 2);
 scene.add(ground);
 
 const video = document.createElement("video");
-video.src = "footage.mp4";
+video.src = window.THEIATRON_FOOTAGE_SRC || "footage.mp4";
 video.muted = true;
 video.preload = "auto";
 
@@ -148,7 +148,10 @@ const MODEL_ORDER = ["sedan", "sedan", "suv", "van", "sedan", "suv", "taxi",
                      "delivery", "van", "truck"];
 const carTemplates = {};
 function loadCarModels() {
-  const loader = new THREE.GLTFLoader();
+  const manager = new THREE.LoadingManager();
+  const whitePixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAE0lEQVR4nGP8//8/AwMDEwMYAAAkBgMBXaJOiAAAAABJRU5ErkJggg==";
+  manager.setURLModifier((url) => url.endsWith("Textures/colormap.png") ? whitePixel : url);
+  const loader = new THREE.GLTFLoader(manager);
   return Promise.all(Object.entries(CAR_GLB_B64).map(([name, b64]) =>
     new Promise((resolve) => {
       const bin = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));

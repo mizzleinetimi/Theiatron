@@ -79,12 +79,19 @@ a held-out post-calibration segment is desired.
 
 Each run writes a timestamped directory under `out/` containing the learned
 config, calibration overlay and road mask, annotated dashboard video, arrival
-events, track motions, reproducibility manifest, and comparison report. See
-`DEMO.md` for the stage checklist and supported-footage constraints.
+events, track motions, run-specific 3D timeline and footage, reproducibility
+manifest, and comparison report. On macOS the launcher opens that run directly
+in the side-by-side 3D viewer when processing finishes. See `DEMO.md` for the
+stage checklist and supported-footage constraints.
 
 Validation on the demo intersection: a full-clip observation recovered all 4
 approaches, count-line geometry, compass names, and phase pairing from the
 checked-in auto-calibration with zero human input.
+
+A clean full inference pass through that learned configuration counted 36
+arrivals and produced 9.09 s adaptive versus 13.01 s fixed modeled average
+wait (30.1% lower). The detector used for evaluation is deliberately a fresh
+instance: reusing the calibration tracker can recycle IDs and merge vehicles.
 
 ## Quickstart
 
@@ -99,7 +106,7 @@ python run_demo.py --config configs/intersection.yaml --duration 180  # single-c
 python run_demo.py --duration 120      # 4-camera variant (configs/approaches.yaml)
 python run_demo.py --replay out/events.json   # reproduce numbers, no vision
 python benchmark_edge.py               # ONNX CPU benchmark
-pytest                                  # 37 unit tests
+pytest                                  # 39 unit tests
 ```
 
 ## Architecture

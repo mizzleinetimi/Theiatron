@@ -15,6 +15,8 @@ The primary demo performs fresh inference on the selected video:
    point-queue simulations.
 6. The dashboard shows modeled queueing, average wait, vehicles waiting now,
    and cumulative vehicle-seconds saved.
+7. A run-specific 3D timeline is exported and the side-by-side viewer opens
+   after processing finishes.
 
 Recorded vehicles cannot react to a simulated light. Detection and arrival
 measurement are real; signal response and queue discharge are simulated.
@@ -34,7 +36,9 @@ bash scripts/live_demo.sh videos/intersection.mp4
 The stage launcher uses up to 180 seconds for calibration and 180 seconds for a
 fresh full-video evaluation. The evaluation automatically shortens to the
 available footage.
-Artifacts are written to `out/live-YYYYMMDD-HHMMSS/`.
+Artifacts are written to `out/live-YYYYMMDD-HHMMSS-PID/`.
+The 3D viewer can be reopened using the `three_d.viewer` path recorded in that
+run's `manifest.json`.
 
 For a shorter rehearsal:
 
@@ -53,6 +57,8 @@ THEIATRON_OBSERVE=180 THEIATRON_DURATION=30 \
 - Use the motion road-mask backend; it does not download another model.
 - Keep the latest `annotated.mp4`, `calibration.png`, and `report.md` open as
   fallbacks.
+- Keep the latest run's 3D viewer open in a browser tab as the main presentation
+  surface.
 - Press `q` to stop the live evaluation and keep the results collected so far.
 
 ## Presenter wording
