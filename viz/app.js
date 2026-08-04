@@ -278,7 +278,7 @@ const plateLoaded = new Promise((res) => {
   plateImg.onload = () => res();
   plateImg.onerror = () => res();
 });
-plateImg.src = "plate.jpg";
+plateImg.src = window.THEIATRON_PLATE_SRC || "plate.jpg";
 
 let plateTex = null;
 function makePlateTexture() {

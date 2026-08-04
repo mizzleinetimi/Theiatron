@@ -105,10 +105,11 @@
   const runParam = new URLSearchParams(location.search).get("run") || "";
   const runOK = /^out\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(runParam);
   window.THEIATRON_FOOTAGE_SRC = runOK ? `../${runParam}/footage.mp4` : "footage.mp4";
+  window.THEIATRON_PLATE_SRC = runOK ? `../${runParam}/plate.jpg` : "plate.jpg";
   document.getElementById("twinLink").href = runOK
     ? `twin.html?run=${encodeURIComponent(runParam)}` : "twin.html";
   document.write(`<script src="${runOK ? `../${runParam}/timeline.js` : "timeline.js?v=twin2"}"><\/script>`);
 </script>
-<script src="app.js?v=twin5"></script>
+<script src="app.js?v=twin6"></script>
 </body>
 </html>

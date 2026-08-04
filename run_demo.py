@@ -363,6 +363,33 @@ def _normalize_frame(frame, width: int = 1280, height: int = 720):
     return cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
 
 
+def _temporal_median_frame(frames):
+    """Clean-ish scene plate from sparse frames of one static camera."""
+    import numpy as np
+
+    if not frames:
+        raise ValueError("at least one frame is required")
+    return np.median(np.stack(frames), axis=0).astype(np.uint8)
+
+
+def _scene_plate(frames, max_median_delta: float = 15.0):
+    """Use a clean temporal median only when the camera is sufficiently still.
+
+    A moving camera turns a pixel-wise median into a blurred composite.  In
+    that case, choose the sharp observed frame closest to the median scene.
+    """
+    import cv2
+    import numpy as np
+
+    plate = _temporal_median_frame(frames)
+    deltas = [float(np.mean(cv2.absdiff(frame, plate))) for frame in frames]
+    variation = float(np.median(deltas))
+    if variation <= max_median_delta:
+        return plate, "temporal-median", variation
+    best = min(range(len(frames)), key=deltas.__getitem__)
+    return frames[best].copy(), "representative-frame", variation
+
+
 def _calibration_quality(corridors, moving_count: int) -> dict:
     """Small, explainable quality gate for an automatically learned layout."""
     import math
@@ -655,6 +682,9 @@ def run_live_demo(args):
     feed = VideoFeed(str(source), cfg.vision.process_fps, loop=False)
     detector = VehicleDetector(cfg.vision)
     paths = defaultdict(list)
+    plate_samples = []
+    plate_interval = max(observe_target / 17.0, feed.dt)
+    next_plate_sample = 0.0
     first_frame = last_frame = None
     obs_time = 0.0
     setup_aborted = False
@@ -668,6 +698,9 @@ def run_live_demo(args):
                 first_frame = frame.copy()
             last_frame = frame.copy()
             obs_time = round(obs_time + feed.dt, 6)
+            if obs_time + 1e-9 >= next_plate_sample:
+                plate_samples.append(frame.copy())
+                next_plate_sample += plate_interval
             detections = detector.track(frame)
             for d in detections:
                 paths[d.track_id].append((obs_time, d.x, d.y))
@@ -720,6 +753,12 @@ def run_live_demo(args):
         cfg.approaches = autocal.to_approach_configs(corridors, str(source.resolve()))
         session_config = run_dir / "config.yaml"
         save_config(cfg, session_config)
+        plate_path = run_dir / "plate.jpg"
+        plate, plate_mode, plate_variation = _scene_plate(plate_samples)
+        if not cv2.imwrite(
+            str(plate_path), plate, [cv2.IMWRITE_JPEG_QUALITY, 90]
+        ):
+            sys.exit(f"cannot create run-specific 3D ground plate: {plate_path}")
         cv2.imwrite(str(run_dir / "road_mask.png"), mask)
         overlay = _draw_calibration_result(last_frame, mask, moving, corridors, quality)
         overlay_path = run_dir / "calibration.png"
@@ -940,6 +979,7 @@ def run_live_demo(args):
         viewer_path = (
             f"viz/index.html?run={viewer_run}" if viewer_run else None
         )
+        three_d_ready = timeline_ok and footage_ok and plate_path.is_file()
         manifest = {
             "source": event_meta["source"],
             "source_sha256": source_hash,
@@ -962,10 +1002,13 @@ def run_live_demo(args):
                 "p95_wait_reduction_pct": report["p95_wait_reduction_pct"],
             },
             "three_d": {
-                "ready": timeline_ok and footage_ok,
+                "ready": three_d_ready,
                 "timeline": str(timeline_path.resolve()) if timeline_ok else None,
                 "footage": str(footage_path.resolve()) if footage_ok else None,
-                "viewer": viewer_path if timeline_ok and footage_ok else None,
+                "plate": str(plate_path.resolve()) if plate_path.is_file() else None,
+                "plate_mode": plate_mode,
+                "plate_variation": round(plate_variation, 2),
+                "viewer": viewer_path if three_d_ready else None,
             },
         }
         (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
@@ -973,7 +1016,7 @@ def run_live_demo(args):
               f"({frames_done / wall_time:.1f} ticks/s)")
         print(f"live run complete: {run_dir}")
         print(f"replay: python run_demo.py --replay {event_path}")
-        if viewer_path and timeline_ok and footage_ok:
+        if viewer_path and three_d_ready:
             print(f"3D viewer: {viewer_path}")
     finally:
         feed.release()

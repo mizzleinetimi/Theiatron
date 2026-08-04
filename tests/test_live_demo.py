@@ -11,6 +11,8 @@ from run_demo import (
     _export_3d_timeline,
     _new_run_dir,
     _normalize_frame,
+    _scene_plate,
+    _temporal_median_frame,
 )
 from theiatron.config import AppConfig, ApproachConfig, save_config
 from theiatron.events import save_events
@@ -66,6 +68,27 @@ def test_frame_normalization_uses_calibration_resolution():
     frame = np.zeros((360, 640, 3), dtype=np.uint8)
     normalized = _normalize_frame(frame)
     assert normalized.shape == (720, 1280, 3)
+
+
+def test_temporal_median_plate_removes_transient_pixels():
+    frames = [np.full((2, 3, 3), 20, dtype=np.uint8) for _ in range(3)]
+    frames[0][0, 0] = 240
+
+    plate = _temporal_median_frame(frames)
+
+    assert plate.shape == (2, 3, 3)
+    assert np.all(plate == 20)
+
+
+def test_scene_plate_uses_sharp_frame_when_camera_is_unstable():
+    frames = [np.full((2, 3, 3), value, dtype=np.uint8)
+              for value in (0, 100, 200)]
+
+    plate, mode, variation = _scene_plate(frames)
+
+    assert mode == "representative-frame"
+    assert variation == 100.0
+    assert np.all(plate == 100)
 
 
 def test_live_run_directory_never_overwrites(tmp_path):
