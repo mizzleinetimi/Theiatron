@@ -1,0 +1,80 @@
+signal:
+  min_green: 12.0
+  max_green: 45.0
+  yellow: 3.0
+  all_red: 1.0
+  fixed_split: 30.0
+  wait_weight: 0.05
+  hysteresis: 10.0
+  pressure_ratio: 1.5
+queue:
+  lanes: 1
+  sat_headway: 2.0
+  startup_lost: 2.0
+vision:
+  model: yolo26n.pt
+  imgsz: 640
+  conf: 0.3
+  classes:
+  - 2
+  - 3
+  - 5
+  - 7
+  process_fps: 10.0
+  min_track_age: 3
+  device: cpu
+# Hand-tuned calibration (trajectory-verified). The machine-learned
+# equivalent lives in configs/intersection.auto.yaml.
+approaches:
+- name: north
+  video: videos/intersection.mp4
+  phase: NS
+  count_line:
+  - - 270
+    - 350
+  - - 500
+    - 190
+  approach_side:
+  - 200
+  - 150
+  roi: null
+  lanes: 1
+- name: south
+  video: videos/intersection.mp4
+  phase: NS
+  count_line:
+  - - 880
+    - 700
+  - - 1150
+    - 560
+  approach_side:
+  - 1150
+  - 720
+  roi: null
+  lanes: 1
+- name: east
+  video: videos/intersection.mp4
+  phase: EW
+  count_line:
+  - - 474
+    - 310
+  - - 586
+    - 450
+  approach_side:
+  - 700
+  - 200
+  roi: null
+  lanes: 1
+- name: west
+  video: videos/intersection.mp4
+  phase: EW
+  count_line:
+  - - 395
+    - 486
+  - - 505
+    - 614
+  approach_side:
+  - 330
+  - 690
+  roi: null
+  lanes: 1

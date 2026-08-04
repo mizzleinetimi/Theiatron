@@ -1,0 +1,78 @@
+signal:
+  min_green: 12.0
+  max_green: 45.0
+  yellow: 3.0
+  all_red: 1.0
+  fixed_split: 30.0
+  wait_weight: 0.05
+  hysteresis: 10.0
+  pressure_ratio: 1.5
+queue:
+  lanes: 1
+  sat_headway: 2.0
+  startup_lost: 2.0
+vision:
+  model: yolo26n.pt
+  imgsz: 416
+  conf: 0.3
+  classes:
+  - 2
+  - 3
+  - 5
+  - 7
+  process_fps: 10.0
+  min_track_age: 3
+  device: cpu
+approaches:
+- name: north
+  video: videos/north.mp4
+  phase: NS
+  count_line:
+  - - 260
+    - 545
+  - - 900
+    - 545
+  approach_side:
+  - 560
+  - 400
+  roi: null
+  lanes: 1
+- name: south
+  video: videos/south.mp4
+  phase: NS
+  count_line:
+  - - 430
+    - 620
+  - - 1180
+    - 620
+  approach_side:
+  - 800
+  - 450
+  roi: null
+  lanes: 1
+- name: east
+  video: videos/east.mp4
+  phase: EW
+  count_line:
+  - - 380
+    - 600
+  - - 1000
+    - 600
+  approach_side:
+  - 600
+  - 450
+  roi: null
+  lanes: 1
+- name: west
+  video: videos/west.mp4
+  phase: EW
+  count_line:
+  - - 450
+    - 560
+  - - 450
+    - 720
+  approach_side:
+  - 650
+  - 620
+  roi: null
+  lanes: 1

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Theiatron — Investor One-Pager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@800;900&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:#181b22; --dim:#5a6170; --paper:#ffffff; --panel:#f4f5f8;
+    --amber:#e09c12; --amberB:#ffb724; --go:#1da653; --stop:#d64438; --blue:#3d78d8;
+    --line:#e3e5ea; --night:#14161f;
+    --disp:"Overpass",sans-serif; --body:"Archivo",sans-serif; --mono:"IBM Plex Mono",monospace;
+  }
+  * { box-sizing:border-box; margin:0; }
+  html,body { background:#888; }
+  @page { size:A4; margin:0; }
+  @media print { html,body { background:#fff; } .page { box-shadow:none; } }
+  .page { width:210mm; height:297mm; margin:0 auto; background:var(--paper); color:var(--ink);
+          font-family:var(--body); font-size:8.8pt; line-height:1.4; overflow:hidden;
+          display:flex; flex-direction:column; box-shadow:0 4px 30px rgba(0,0,0,.4); }
+
+  /* ---------- header ---------- */
+  .head { background:var(--night); color:#f1f2f7; padding:4.4mm 9mm 3.8mm; display:flex; align-items:center; gap:5mm; }
+  .head h1 { font-family:var(--disp); font-weight:900; font-size:24pt; letter-spacing:.1em; line-height:1; }
+  .head .tag { font-size:10.5pt; color:#d6d9e2; margin-top:1.2mm; }
+  .head .tag b { color:var(--amberB); }
+  .badge { margin-left:auto; text-align:right; }
+  .badge .chip { display:inline-block; background:var(--amberB); color:var(--night); border-radius:999px;
+                 padding:1.5mm 4mm; font-family:var(--mono); font-size:7pt; font-weight:600; letter-spacing:.08em; }
+  .badge .site { display:block; margin-top:1.8mm; color:#c8cbd6; font-family:var(--mono); font-size:8pt; }
+  .triad { height:1.4mm; background:linear-gradient(90deg,var(--stop),var(--amberB),var(--go)); }
+
+  /* ---------- vertical flow ---------- */
+  .flow { flex:1; padding:2.8mm 9mm 0; display:flex; flex-direction:column; gap:2mm; }
+  section { break-inside:avoid; }
+  .sechead { display:flex; align-items:center; gap:2.5mm; margin-bottom:1.6mm; }
+  .sechead .num { font-family:var(--mono); font-size:7pt; font-weight:600; color:#fff;
+                  width:6mm; height:6mm; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+  .sechead h2 { font-family:var(--disp); font-weight:900; font-size:10.5pt; text-transform:uppercase; letter-spacing:.06em; }
+  .sechead .rule { flex:1; height:1px; background:var(--line); }
+  .sechead .side { font-family:var(--mono); font-size:6.8pt; color:var(--dim); letter-spacing:.06em; }
+
+  .row { display:flex; gap:2.5mm; }
+  .row > * { flex:1; }
+
+  /* problem */
+  .prob { font-size:9.6pt; }
+  .prob b { color:var(--stop); }
+  .chips { display:flex; gap:2mm; margin-top:1.6mm; }
+  .chip2 { flex:1; background:var(--panel); border-radius:1.8mm; padding:1.8mm 2.5mm;
+           font-size:7.6pt; color:#343946; display:flex; align-items:center; gap:2mm; }
+  .chip2 i { width:2.6mm; height:2.6mm; border-radius:50%; flex:0 0 auto; }
+
+  /* solution */
+  .verb { background:var(--panel); border-radius:2mm; padding:1.8mm 3mm; border-top:1mm solid; }
+  .verb h3 { font-family:var(--disp); font-size:9.5pt; font-weight:900; letter-spacing:.04em; }
+  .verb p { font-size:7.8pt; color:#343946; margin-top:0.4mm; }
+  .pills { display:flex; gap:1.6mm; margin-top:1.8mm; flex-wrap:wrap; }
+  .pill { border:1px solid var(--line); border-radius:999px; padding:0.9mm 3mm;
+          font-family:var(--mono); font-size:6.6pt; color:var(--dim); letter-spacing:.05em; }
+  .pill.hot { border-color:var(--amber); color:var(--amber); font-weight:600; }
+
+  /* evidence */
+  .stat { background:var(--night); color:#fff; border-radius:2mm; padding:1.9mm 3mm; text-align:center; }
+  .stat b { display:block; font-family:var(--disp); font-weight:900; font-size:14.5pt; color:#2fe07c; line-height:1.05; }
+  .stat span { font-size:6.6pt; color:#aab0bf; letter-spacing:.06em; text-transform:uppercase; }
+  .stat.amberv b { color:var(--amberB); }
+  .shot { flex:0 0 46mm; border-radius:2mm; overflow:hidden; border:1px solid var(--line); position:relative; }
+  .shot img { width:100%; height:100%; object-fit:cover; display:block; }
+  .shot span { position:absolute; left:0; right:0; bottom:0; background:rgba(20,22,31,.85); color:#fff;
+               font-family:var(--mono); font-size:5.8pt; padding:1mm 2mm; letter-spacing:.06em; }
+  .chart { background:var(--panel); border-radius:2mm; padding:2.2mm 3.5mm 1.8mm; margin-top:2mm; }
+  .chart .crow { display:flex; align-items:center; gap:2.5mm; margin-bottom:1.3mm; }
+  .chart .lbl { flex:0 0 30mm; font-family:var(--mono); font-size:7.4pt; color:var(--ink); text-align:right; font-weight:600; }
+  .chart .bar { height:5.2mm; border-radius:1.2mm; display:flex; align-items:center; justify-content:flex-end;
+                padding-right:2mm; font-family:var(--mono); font-size:8.2pt; font-weight:600; color:#fff; }
+  .chart .cap { font-size:6.6pt; color:var(--dim); margin-top:0.5mm; }
+
+  /* market + traction combined visuals */
+  .mkt { display:flex; gap:2mm; }
+  .mkt .m { flex:1; background:var(--panel); border-radius:1.8mm; padding:1.8mm 2.5mm; font-size:7.6pt; }
+  .mkt .m b { display:block; font-family:var(--mono); font-size:6.4pt; letter-spacing:.08em; color:var(--amber); }
+  .checks { display:flex; gap:2mm; }
+  .check { flex:1; background:#eaf6ee; border-radius:1.8mm; padding:1.8mm 2.2mm; font-size:7.4pt; color:#1e3a28; }
+  .check b { display:block; color:var(--go); font-size:7.8pt; }
+  .honest { font-size:7pt; color:var(--dim); margin-top:1.2mm; font-style:italic; }
+
+  /* revenue */
+  .rev { display:flex; gap:2mm; }
+  .rev .r { flex:1; border:1px solid var(--line); border-radius:1.8mm; padding:1.8mm 2.5mm; font-size:7.5pt; color:#343946; }
+  .rev .r b { display:block; font-family:var(--mono); font-size:6.8pt; letter-spacing:.1em; color:var(--amber); margin-bottom:0.4mm; }
+
+  /* invest */
+  .ask { background:var(--night); color:#e8eaf0; border-radius:2mm; padding:3mm 4mm; display:flex; gap:5mm; align-items:center; }
+  .ask .amt { font-family:var(--disp); font-weight:900; font-size:17pt; color:var(--amberB); line-height:1; white-space:nowrap; }
+  .ask .amt span { display:block; font-family:var(--mono); font-size:6.6pt; color:#aab0bf; font-weight:400;
+                   letter-spacing:.08em; margin-top:1mm; }
+  .ask .right { flex:1; }
+  .use { display:flex; border-radius:1mm; overflow:hidden; height:4.6mm; }
+  .key { display:flex; flex-wrap:wrap; gap:1mm 3.5mm; margin-top:1.4mm; font-size:6.6pt; color:#c8cbd6; }
+  .key i { display:inline-block; width:2mm; height:2mm; border-radius:0.5mm; margin-right:1mm; }
+
+  /* growth timeline */
+  .tl { position:relative; display:flex; gap:2mm; padding-top:3.4mm; }
+  .tl::before { content:""; position:absolute; top:1.1mm; left:2%; right:2%; height:0.8mm; border-radius:1mm;
+                background:linear-gradient(90deg,var(--stop),var(--amberB),var(--go)); }
+  .tl .step { flex:1; position:relative; background:var(--panel); border-radius:1.8mm; padding:1.8mm 2.2mm; }
+  .tl .step::before { content:""; position:absolute; top:-3.2mm; left:50%; width:2.4mm; height:2.4mm;
+                      border-radius:50%; background:#fff; border:0.7mm solid var(--night); transform:translateX(-50%); }
+  .tl .yr { font-family:var(--mono); font-size:7pt; color:var(--amber); font-weight:600; }
+  .tl .what { font-size:7.2pt; color:#343946; line-height:1.32; margin-top:0.4mm; }
+
+  /* footer */
+  .foot { background:var(--night); color:#f1f2f7; padding:2.8mm 9mm; margin-top:2mm; flex-shrink:0;
+          display:flex; align-items:center; gap:6mm; }
+  .foot .who b { font-family:var(--disp); font-size:11pt; letter-spacing:.03em; }
+  .foot .who span { display:block; font-size:7pt; color:#8b91a3; }
+  .foot .c { margin-left:auto; display:flex; gap:6mm; font-family:var(--mono); font-size:8pt; }
+  .foot .c div span { display:block; font-size:6pt; color:#8b91a3; letter-spacing:.12em; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="head">
+    <svg viewBox="0 0 36 64" width="38" height="67" aria-hidden="true">
+      <rect x="2" y="2" width="32" height="60" rx="11" fill="none" stroke="#545a70" stroke-width="3"/>
+      <circle cx="18" cy="15" r="5.5" fill="#ff5147"/>
+      <path d="M7.5 32 Q18 24.5 28.5 32 Q18 39.5 7.5 32 Z" fill="none" stroke="#ffb724" stroke-width="2.4"/>
+      <circle cx="18" cy="32" r="3" fill="#ffb724"/>
+      <circle cx="18" cy="49" r="5.5" fill="#2fe07c"/>
+    </svg>
+    <div>
+      <h1>THEIATRON</h1>
+      <div class="tag">Traffic lights that <b>see</b>. On-device AI signal control — <b>no internet required</b>.</div>
+    </div>
+    <div class="badge">
+      <span class="chip">FINALIST · NEXTGEN 2026</span>
+      <span class="site">theiatron.vercel.app</span>
+    </div>
+  </div>
+  <div class="triad"></div>
+
+  <div class="flow">
+
+    <section>
+      <div class="sechead"><span class="num" style="background:var(--stop)">01</span><h2>The Problem</h2><div class="rule"></div><span class="side">EVERY JUNCTION · EVERY DAY</span></div>
+      <p class="prob">Traffic lights run on timers set once — <b>blind</b> to the queues in front of them.
+        Adaptive systems exist, but at tens of thousands of dollars per junction,
+        <b>most African cities will never deploy them.</b></p>
+      <div class="chips">
+        <div class="chip2"><i style="background:var(--stop)"></i>Hours lost weekly per commuter</div>
+        <div class="chip2"><i style="background:var(--amber)"></i>Fuel burned & emissions at idle</div>
+        <div class="chip2"><i style="background:var(--blue)"></i>Legacy fix unaffordable at scale</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sechead"><span class="num" style="background:var(--amber)">02</span><h2>The Solution</h2><div class="rule"></div><span class="side">A CAMERA + A 6 MB BRAIN, ON THE POLE</span></div>
+      <div class="row">
+        <div class="verb" style="border-color:var(--amber)"><h3>IT SEES</h3><p>Detects & tracks every vehicle, 10× per second.</p></div>
+        <div class="verb" style="border-color:var(--stop)"><h3>IT MEASURES</h3><p>Queue length & waiting time on every road.</p></div>
+        <div class="verb" style="border-color:var(--go)"><h3>IT DECIDES</h3><p>Green goes where it's needed — behind hard safety interlocks.</p></div>
+      </div>
+      <div class="pills">
+        <span class="pill hot">SELF-CALIBRATING — learns any intersection in 3 min</span>
+        <span class="pill">FULLY OFFLINE</span>
+        <span class="pill">RETROFIT, NOT REBUILD</span>
+        <span class="pill">FAILS SAFE TO A TIMER</span>
+        <span class="pill">FRACTION OF LEGACY COST</span>
+      </div>
+    </section>
+
+    <section>
+      <div class="sechead"><span class="num" style="background:var(--go)">03</span><h2>Evidence</h2><div class="rule"></div><span class="side">MEASURED ON REAL TRAFFIC · REPRODUCIBLE</span></div>
+      <div class="row">
+        <div class="stat"><b>−45%</b><span>average wait</span></div>
+        <div class="stat"><b>−51%</b><span>worst-case wait</span></div>
+        <div class="stat amberv"><b>2.9×</b><span>real-time on CPU</span></div>
+        <div class="shot"><img src="dashboard.jpg" alt="Live prototype"><span>LIVE PROTOTYPE — REAL FOOTAGE</span></div>
+      </div>
+      <div class="chart">
+        <div class="crow"><div class="lbl">OLD FIXED TIMER</div><div class="bar" style="width:118mm;background:var(--stop)">10.9 s</div></div>
+        <div class="crow"><div class="lbl">THEIATRON</div><div class="bar" style="width:65mm;background:var(--go)">6.0 s</div></div>
+        <div class="cap">Average wait per vehicle — 40 real vehicles, identical demand for both controllers, replayable from recorded data.</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sechead"><span class="num" style="background:var(--blue)">04</span><h2>Market</h2><div class="rule"></div><span class="side">NIGERIA FIRST · THEN WEST AFRICA</span></div>
+      <div class="mkt">
+        <div class="m"><b>WHO BUYS</b>State & city governments, road agencies, toll & estate operators.</div>
+        <div class="m"><b>THE GAP</b>Thousands of junctions where legacy adaptive systems are unaffordable.</div>
+        <div class="m"><b>THE PRIZE</b>A multi-billion-dollar global adaptive-traffic market, growing with urbanisation.</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sechead"><span class="num" style="background:var(--go)">05</span><h2>Traction</h2><div class="rule"></div><span class="side">PRE-REVENUE · PROTOTYPE VALIDATED</span></div>
+      <div class="checks">
+        <div class="check"><b>✓ National finalist</b>NextGen 2026 → London Grand Finale</div>
+        <div class="check"><b>✓ Working prototype</b>−45% waiting time, end to end</div>
+        <div class="check"><b>✓ Self-calibration</b>Learns intersections by watching</div>
+        <div class="check"><b>✓ Public demo</b>theiatron.vercel.app + 3D twin</div>
+      </div>
+      <div class="honest">Honestly stated: no revenue or deployments yet — the first field pilot is exactly what this raise funds.</div>
+    </section>
+
+    <section>
+      <div class="sechead"><span class="num" style="background:var(--amber)">06</span><h2>Revenue Model</h2><div class="rule"></div></div>
+      <div class="rev">
+        <div class="r"><b>HARDWARE</b>Per-intersection unit sale — camera + edge controller, retrofit install.</div>
+        <div class="r"><b>LICENCE</b>Annual per-intersection software licence & safety monitoring.</div>
+        <div class="r"><b>INSIGHTS</b>City analytics subscription from the same cameras.</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sechead"><span class="num" style="background:var(--go)">07</span><h2>The Ask</h2><div class="rule"></div></div>
+      <div class="ask">
+        <div class="amt">US$100,000<span>PRE-SEED</span></div>
+        <div class="right">
+          <div class="use">
+            <div style="width:40%;background:var(--amberB)"></div>
+            <div style="width:30%;background:#2fe07c"></div>
+            <div style="width:15%;background:#5a9cf0"></div>
+            <div style="width:15%;background:#8b91a3"></div>
+          </div>
+          <div class="key">
+            <span><i style="background:var(--amberB)"></i>40% pilot: 3 live intersections</span>
+            <span><i style="background:#2fe07c"></i>30% engineering</span>
+            <span><i style="background:#5a9cf0"></i>15% regulatory</span>
+            <span><i style="background:#8b91a3"></i>15% operations</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sechead"><span class="num" style="background:var(--stop)">08</span><h2>Growth Plan</h2><div class="rule"></div></div>
+      <div class="tl">
+        <div class="step"><div class="yr">2026</div><div class="what">London finale · field unit on Raspberry Pi 5 · local footage pilots.</div></div>
+        <div class="step"><div class="yr">2027</div><div class="what">First live pilot — 3 intersections with a state partner; published results.</div></div>
+        <div class="step"><div class="yr">2028</div><div class="what">First commercial deployments, 25+ junctions · corridor "green waves".</div></div>
+        <div class="step"><div class="yr">2029–30</div><div class="what">500+ junctions multi-city · West-Africa expansion · analytics platform.</div></div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="foot">
+    <div class="who"><b>OMU INETIMI</b><span>Founder — Theiatron</span></div>
+    <div class="c">
+      <div><span>EMAIL</span>bickqr@gmail.com</div>
+      <div><span>PHONE</span>+234 904 643 0996</div>
+      <div><span>WEB</span>theiatron.vercel.app</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

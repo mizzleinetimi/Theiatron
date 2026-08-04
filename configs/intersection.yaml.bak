@@ -1,0 +1,78 @@
+signal:
+  min_green: 12.0
+  max_green: 45.0
+  yellow: 3.0
+  all_red: 1.0
+  fixed_split: 30.0
+  wait_weight: 0.05
+  hysteresis: 10.0
+  pressure_ratio: 1.5
+queue:
+  lanes: 1
+  sat_headway: 2.0
+  startup_lost: 2.0
+vision:
+  model: yolo26n.pt
+  imgsz: 640
+  conf: 0.3
+  classes:
+  - 2
+  - 3
+  - 5
+  - 7
+  process_fps: 10.0
+  min_track_age: 3
+  device: cpu
+approaches:
+- name: north
+  video: videos/intersection.mp4
+  phase: NS
+  count_line:
+  - - 261
+    - 175
+  - - 222
+    - 222
+  approach_side:
+  - 233
+  - 97
+  roi: null
+  lanes: 1
+- name: south
+  video: videos/intersection.mp4
+  phase: NS
+  count_line:
+  - - 1059
+    - 718
+  - - 1090
+    - 691
+  approach_side:
+  - 1130
+  - 718
+  roi: null
+  lanes: 1
+- name: east
+  video: videos/intersection.mp4
+  phase: EW
+  count_line:
+  - - 1227
+    - 279
+  - - 960
+    - 25
+  approach_side:
+  - 1103
+  - 65
+  roi: null
+  lanes: 1
+- name: west
+  video: videos/intersection.mp4
+  phase: EW
+  count_line:
+  - - 408
+    - 548
+  - - 431
+    - 599
+  approach_side:
+  - 369
+  - 632
+  roi: null
+  lanes: 1

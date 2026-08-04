@@ -1,0 +1,8 @@
+ultralytics>=8.4
+opencv-python~=4.12
+numpy>=2.0
+onnx
+onnxruntime~=1.23
+lap>=0.5.12
+pyyaml
+pytest~=8.0
