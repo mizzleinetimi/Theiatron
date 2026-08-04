@@ -108,9 +108,18 @@ LANE_ANCHOR = {  # world (x, z) stop points + travel dirs; mirrors viz lanes
 
 
 def build_world_map():
-    d_n, d_e = IMG_DIR.get("north"), IMG_DIR.get("east")
-    if not d_n or not d_e:
+    # Use the best-conditioned pair across the learned signal phases.  Camera
+    # perspective can make the specifically named north/east directions look
+    # nearly parallel even when another NS/EW pair spans the image cleanly.
+    ns = [IMG_DIR[a.name] for a in app.approaches if a.phase == "NS"]
+    ew = [IMG_DIR[a.name] for a in app.approaches if a.phase == "EW"]
+    candidates = [
+        (abs(d_ns[0] * d_ew[1] - d_ew[0] * d_ns[1]), d_ns, d_ew)
+        for d_ns in ns for d_ew in ew
+    ]
+    if not candidates:
         return None
+    _span, d_n, d_e = max(candidates, key=lambda item: item[0])
     det = d_n[0] * d_e[1] - d_e[0] * d_n[1]
     if abs(det) < 0.2:  # degenerate camera geometry
         return None

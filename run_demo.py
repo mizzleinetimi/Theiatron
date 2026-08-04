@@ -439,6 +439,7 @@ def _new_run_dir(root: str | Path, requested_name: str | None = None) -> Path:
 def _export_3d_timeline(event_path: Path, duration: float, config_path_: Path,
                         tracks_path: Path, timeline_path: Path) -> tuple[bool, str]:
     """Build the run-specific timeline consumed by the browser 3D viewer."""
+    import json
     import subprocess
 
     exporter = Path(__file__).resolve().parent / "scripts" / "export_timeline.py"
@@ -457,6 +458,14 @@ def _export_3d_timeline(event_path: Path, duration: float, config_path_: Path,
     )
     if proc.returncode != 0:
         return False, (proc.stderr.strip() or proc.stdout.strip() or "unknown export error")
+    try:
+        payload = json.loads(
+            timeline_path.read_text().removeprefix("const TIMELINE = ").removesuffix(";\n")
+        )
+    except (OSError, json.JSONDecodeError) as e:
+        return False, f"timeline validation failed: {e}"
+    if not payload.get("twin_affine") or not payload.get("count_lines_tw"):
+        return False, "camera geometry cannot produce a valid 3D projection"
     return True, proc.stdout.strip()
 
 

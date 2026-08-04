@@ -85,16 +85,19 @@ def test_live_run_directory_rejects_path_traversal(tmp_path):
 
 
 def test_run_specific_3d_timeline_export(tmp_path):
-    approaches = [
-        ApproachConfig(
+    approaches = []
+    for name in ("north", "south", "east", "west"):
+        phase = "NS" if name in ("north", "south") else "EW"
+        approaches.append(ApproachConfig(
             name=name,
             video="clip.mp4",
-            phase="NS" if name in ("north", "south") else "EW",
-            count_line=[[100, 120], [180, 120]],
-            approach_side=[140, 60],
-        )
-        for name in ("north", "south", "east", "west")
-    ]
+            phase=phase,
+            count_line=(
+                [[100, 120], [180, 120]] if phase == "NS"
+                else [[220, 80], [220, 160]]
+            ),
+            approach_side=([140, 60] if phase == "NS" else [280, 120]),
+        ))
     config = tmp_path / "config.yaml"
     events = tmp_path / "events.json"
     tracks = tmp_path / "tracks.json"
@@ -113,3 +116,5 @@ def test_run_specific_3d_timeline_export(tmp_path):
     assert payload["arrivals"] == 2
     assert payload["sample_status"] == "inconclusive"
     assert payload["source"] == "/tmp/clip.mp4"
+    assert len(payload["twin_affine"]) == 6
+    assert set(payload["count_lines_tw"]) == {"north", "south", "east", "west"}

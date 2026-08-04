@@ -21,6 +21,7 @@ The geometry here is pure Python so it is unit-testable without video.
 from __future__ import annotations
 
 import math
+from itertools import combinations
 from dataclasses import dataclass, field
 
 from .config import ApproachConfig
@@ -193,22 +194,27 @@ COMPASS = {"north": (0.0, -1.0), "south": (0.0, 1.0), "east": (1.0, 0.0), "west"
 def name_and_phase(corridors: list[Corridor]) -> None:
     """Compass names from the upstream direction; opposite corridors pair
     into one phase; the more-vertical axis is NS."""
-    # pair opposites into axes
-    unpaired = list(range(len(corridors)))
-    axes: list[list[int]] = []
-    while unpaired:
-        i = unpaired.pop(0)
-        best_j, best_dot = None, -0.7
-        for j in unpaired:
-            d = (corridors[i].direction[0] * corridors[j].direction[0]
-                 + corridors[i].direction[1] * corridors[j].direction[1])
-            if d < best_dot:
-                best_j, best_dot = j, d
-        if best_j is not None:
-            unpaired.remove(best_j)
-            axes.append([i, best_j])
-        else:
-            axes.append([i])
+    # Pair every learned corridor into at most two signal axes.  A fixed
+    # dot-product cutoff is brittle under perspective: two truly opposing
+    # roads need not appear 180 degrees apart in image coordinates.  Preserve
+    # the strongest opposite pair (normally the dominant through-road), then
+    # put the remaining approaches on the other axis.  Optimizing the sum of
+    # both pairs can incorrectly split one unmistakable road just to improve
+    # a weak/turning-traffic pair.
+    indices = list(range(len(corridors)))
+
+    def opposition(i, j):
+        return (corridors[i].direction[0] * corridors[j].direction[0]
+                + corridors[i].direction[1] * corridors[j].direction[1])
+
+    if len(indices) == 4:
+        i, j = min(combinations(indices, 2), key=lambda pair: opposition(*pair))
+        axes = [[i, j], [k for k in indices if k not in (i, j)]]
+    elif len(indices) == 3:
+        i, j = min(combinations(indices, 2), key=lambda pair: opposition(*pair))
+        axes = [[i, j], [k for k in indices if k not in (i, j)]]
+    else:
+        axes = [indices]
     # more-vertical axis (by mean |dy| share) is NS
     def verticality(axis):
         return sum(abs(corridors[i].direction[1]) for i in axis) / len(axis)

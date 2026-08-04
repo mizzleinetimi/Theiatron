@@ -96,6 +96,36 @@ def test_t_junction():
     assert sorted(phases.values()).count("NS") == 2
 
 
+def test_perspective_skew_still_assigns_every_corridor():
+    """Opposing roads can appear less than 134 degrees apart in the image."""
+    corridors = [
+        autocal.Corridor([], autocal._norm(1.0, 0.0)),
+        autocal.Corridor([], autocal._norm(-0.65, 0.76)),
+        autocal.Corridor([], autocal._norm(0.0, 1.0)),
+        autocal.Corridor([], autocal._norm(0.76, -0.65)),
+    ]
+
+    autocal.name_and_phase(corridors)
+
+    assert {c.name for c in corridors} == {"north", "south", "east", "west"}
+    assert {c.phase for c in corridors} == {"NS", "EW"}
+
+
+def test_strongest_opposite_pair_is_not_split_to_help_weak_pair():
+    corridors = [
+        autocal.Corridor([], autocal._norm(-0.983, -0.181)),
+        autocal.Corridor([], autocal._norm(0.960, 0.278)),
+        autocal.Corridor([], autocal._norm(0.533, -0.846)),
+        autocal.Corridor([], autocal._norm(-0.401, -0.916)),
+    ]
+
+    autocal.name_and_phase(corridors)
+
+    assert corridors[0].phase == corridors[1].phase
+    assert corridors[2].phase == corridors[3].phase
+    assert corridors[0].phase != corridors[2].phase
+
+
 def test_junction_center_recovery():
     rng = random.Random(5)
     corridors = autocal.cluster_by_heading(autocal.moving_tracks(four_way(rng)))
