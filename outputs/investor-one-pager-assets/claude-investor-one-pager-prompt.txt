@@ -1,0 +1,243 @@
+Create a polished, investment-ready Investor One-Pager for Theiatron for the NextGen Innovation Challenge 2026 National Showcase.
+
+Use the attached official NextGen/UKALD Investor One-Pager PDF as the requirements brief. It requires company information, problem, solution, market opportunity, commercial traction, revenue model, investment opportunity, a 3-5 year growth plan, and mandatory contact details. The attached PDF is a three-page instruction letter, not a graphical page template. Produce a new one-page A4 portrait design that covers every required section without looking crowded.
+
+OUTPUT REQUIREMENTS
+
+- Exactly one A4 portrait page.
+- Deliver an editable source file plus a print-ready PDF.
+- Use a clean investor-facing layout with strong hierarchy and generous margins.
+- Make the page understandable in under 90 seconds.
+- Use short, specific copy rather than paragraphs.
+- Use the supplied real detection screenshot as the main product visual.
+- Keep all text readable when printed at 100% scale.
+- Do not use generic smart-city stock photography, futuristic city renders, glowing AI brains, or decorative charts with invented data.
+
+COMMUNICATION OBJECTIVE
+
+An investor or government decision-maker should finish the page believing that Theiatron is a technically credible working prototype with a clear commercial model and a practical path to a supervised three-intersection field pilot.
+
+NON-NEGOTIABLE ACCURACY RULES
+
+- Do not invent revenue, customers, deployments, contracts, partnerships, patents, jobs created, awards, market-size figures, or roadside performance.
+- Theiatron is pre-revenue and has not yet completed a live signal-control pilot.
+- Theiatron is a NextGen Innovation Challenge 2026 finalist and has a working end-to-end prototype.
+- Clearly distinguish real and simulated evidence. Vehicles and arrival demand come from detection and tracking on real traffic footage. Signal service and waiting-time comparisons are modeled. The adaptive and fixed controllers receive the identical detected demand stream.
+- Never describe the 45% result as measured roadside delay reduction.
+- Do not claim that Theiatron currently controls public traffic lights. The next milestone is a supervised field/shadow pilot and safe integration with an approved traffic-signal controller.
+- Do not include a numerical TAM unless the user supplies a reliable, citable market source. It is acceptable to describe the customer segments and geographic expansion opportunity without a speculative number.
+
+VISUAL IDENTITY
+
+- Dark asphalt background: #10121C.
+- Secondary surface: #191C2A.
+- Primary text: #F1F2F7.
+- Muted text: #9096AB.
+- Amber #FFB724 for perception, attention, and the investment ask.
+- Green #2FE07C for adaptive performance and progress.
+- Red #FF5147 for the fixed-timer problem.
+- Cyan may be used only for vehicle-detection labels or East-West road annotations.
+- Use Overpass ExtraBold for headlines, Archivo for body copy, and IBM Plex Mono for metrics and technical labels if available. Use close alternatives if unavailable.
+- Use a restrained traffic-signal or signal-eye motif as the Theiatron mark. Add a small "NEXTGEN 2026 FINALIST" label.
+- If the official UKALD/NextGen mark is used, extract it from the attached brief and keep it small and unchanged. Do not redraw it.
+- Favor one strong visual composition over a grid of many little cards.
+
+SUPPLIED PRODUCT VISUAL
+
+Use this real 16:9 screenshot, cropped only as necessary:
+/Users/user/theiatron/outputs/pitch-assets/theiatron-car-road-detection-action.jpg
+
+Caption:
+"Working prototype detecting and tracking vehicles on previously unseen local footage"
+
+Do not fabricate, remove, or alter the detection boxes or road-approach annotations.
+
+RECOMMENDED PAGE STRUCTURE
+
+Use four horizontal visual zones:
+
+1. Brand and investment headline.
+2. Problem, solution, and real product screenshot.
+3. Evidence, market entry, traction, and revenue model.
+4. Investment ask, growth roadmap, and contact details.
+
+Avoid treating all nine official requirements as nine equally sized boxes. Combine related information so the page reads as a persuasive story rather than a checklist.
+
+EXACT CONTENT TO USE
+
+HEADER / COMPANY INFORMATION
+
+Company name:
+"THEIATRON"
+
+Innovation title:
+"On-device AI adaptive traffic signal control"
+
+Tagline:
+"Traffic lights that see."
+
+Positioning line:
+"A camera and an edge computer give green time to the road that needs it - without cloud connectivity or a new traffic-control network."
+
+Founder line:
+"Omu Inetimi | Founder"
+
+THE PROBLEM
+
+Section headline:
+"Fixed timers cannot see the queue in front of them"
+
+Visible copy:
+"Traffic demand changes minute by minute, but most signals repeat fixed schedules. Busy roads wait while empty roads receive green time, wasting time, fuel, and existing road capacity."
+
+Who is affected:
+"Daily commuters, commercial drivers, public transport operators, emergency services, road agencies, and growing cities."
+
+THE SOLUTION
+
+Section headline:
+"Theiatron turns ordinary camera footage into adaptive signal decisions"
+
+Use three short steps:
+
+"SEE - Detects and tracks cars, buses, motorcycles, and trucks."
+
+"UNDERSTAND - Learns each approach and converts vehicle movement into live demand."
+
+"DECIDE - Allocates green time using queue pressure, minimum and maximum greens, yellow, all-red, and anti-starvation safeguards."
+
+Competitive advantages:
+
+"On-device and offline"
+
+"Self-calibrates to new camera views"
+
+"Retrofit path for existing junctions"
+
+"Designed for Raspberry Pi-class edge hardware"
+
+"Controlled adaptive-versus-fixed comparison on identical detected traffic"
+
+EVIDENCE / COMMERCIAL TRACTION
+
+Make "45%" the largest number on the page.
+
+Primary result:
+"45% lower modeled average waiting"
+
+Supporting result:
+"51% lower modeled p95 waiting"
+
+Comparison:
+"Fixed timer: 10.9 s average wait"
+
+"Theiatron: 6.04 s average wait"
+
+Sample:
+"40 real detected vehicles over a 180-second primary benchmark"
+
+Use one clean horizontal comparison bar for 10.9 seconds versus 6.04 seconds. Do not use a generic growth chart.
+
+Required evidence note in small but legible text:
+"Real-video vehicle demand; simulated point-queue signal service; identical arrival stream for adaptive and fixed controllers. Results are prototype simulation evidence, not measured roadside delay."
+
+Traction bullets:
+
+"Selected as a NextGen Innovation Challenge 2026 finalist"
+
+"Working end-to-end detection, tracking, control, and reporting prototype"
+
+"Automatically learns traffic approaches from new footage"
+
+"One-click new-footage workflow and interactive 3D digital twin"
+
+"Current commercial status: pre-revenue; no field deployments yet"
+
+MARKET OPPORTUNITY
+
+Section headline:
+"Nigeria first, then West Africa"
+
+Target customers:
+"State and city governments, road and transport agencies, toll-road operators, estates, campuses, ports, and industrial sites."
+
+Market-entry statement:
+"Begin with controlled or supervised three-intersection pilots, prove independently measured results, expand to corridors, and then deploy across multiple cities."
+
+Do not insert an unsourced market-size number. If the user later provides a verified source, add one concise TAM/SAM/SOM line with a human-readable citation.
+
+REVENUE MODEL
+
+Section headline:
+"Three ways to earn per intersection"
+
+"1. Hardware and installation - camera, edge controller, commissioning, and integration."
+
+"2. Annual software licence - control software, monitoring, updates, and support."
+
+"3. Analytics subscription - corridor performance, demand trends, and planning insights."
+
+INVESTMENT OPPORTUNITY
+
+Make the ask visually prominent:
+"US$100,000 PRE-SEED"
+
+Partnership ask:
+"Seeking capital plus a state, road-agency, estate, campus, or industrial-site partner for three supervised pilot junctions."
+
+Use of funds:
+
+"40% - pilot hardware and installation"
+
+"30% - realtime Raspberry Pi engineering and queue measurement"
+
+"15% - safe signal-controller integration and regulatory work"
+
+"15% - field operations, monitoring, and independent evaluation"
+
+Represent this as one simple segmented allocation bar. Do not use four separate decorative cards.
+
+GROWTH PLAN - 3 TO 5 YEARS
+
+Use a compact three-stage roadmap:
+
+"2026-2027 | FIELD VALIDATION - Build the realtime edge unit, secure a pilot partner, deploy three supervised junctions, and publish independently measured results."
+
+"2028 | COMMERCIAL LAUNCH - Convert validated pilots into paid per-intersection deployments and begin corridor-level coordination."
+
+"2029-2030 | REGIONAL SCALE - Expand through government and infrastructure partners into multiple Nigerian cities and selected West African markets."
+
+Do not invent deployment counts or revenue projections. The roadmap should show credible stages and outcomes rather than unsupported hockey-stick numbers.
+
+IMPACT LINE
+
+Use as the closing statement above the contact band:
+"Less waiting. Less fuel wasted at idle. More useful capacity from roads cities already own."
+
+CONTACT INFORMATION - MANDATORY
+
+"Omu Inetimi | Founder, Theiatron"
+
+"Email: bickqr@gmail.com"
+
+"Telephone: +234 904 643 0996"
+
+"Website: theiatron.vercel.app"
+
+Optional:
+Add a QR code to https://theiatron.vercel.app only after confirming the website is live and the QR code scans correctly from both the PDF and a printed copy.
+
+FINAL QUALITY CHECK
+
+- Exactly one A4 portrait page.
+- All nine sections required by the official NextGen brief are covered.
+- The 45% figure is prominent and always described as modeled.
+- The evidence methodology remains visible and readable.
+- No invented commercial traction or market-size number.
+- The page clearly states pre-revenue and no field deployments yet without making those facts the visual headline.
+- The screenshot is sharp, proportionally scaled, and large enough to understand.
+- The funding ask, use of funds, roadmap, and contact information are easy to find.
+- No clipped text, tiny body copy, overlapping elements, or low-contrast labels.
+- Export an editable source and a print-ready PDF.
+
+Before final export, ask the user to confirm the US$100,000 ask, funding allocation, email address, telephone number, website, and whether any verified partnership, pilot, revenue, or market-size evidence should be added.

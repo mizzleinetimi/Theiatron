@@ -1,0 +1,185 @@
+Create a polished five-slide, 16:9 investor pitch deck for the NextGen Innovation Challenge 2026 National Showcase in Abuja.
+
+Treat the attached official NextGen/UKALD PDF as the requirements brief: the presentation is limited to five slides and two minutes, and it must cover introduction, solution, results, business model, and scale-up plan/the ask. The PDF is not a graphical slide master. Use its organizer branding sparingly and accurately, but let Theiatron's visual identity lead the deck.
+
+COMMUNICATION OBJECTIVE
+
+By the end, judges should believe Theiatron is a working, technically credible prototype ready for a funded field pilot because it already detects traffic in previously unseen footage, runs a controlled adaptive-versus-fixed comparison, and has a practical edge-hardware deployment path.
+
+AUDIENCE
+
+Innovation judges, government stakeholders, road agencies, potential pilot partners, and early-stage investors. Assume they are not computer-vision engineers. Make the story immediately understandable and commercially serious.
+
+NON-NEGOTIABLE ACCURACY RULES
+
+- Do not invent customers, revenue, deployments, partnerships, awards, market-size numbers, or roadside results.
+- Theiatron is currently a pre-revenue working prototype and NextGen 2026 finalist.
+- Clearly distinguish what is real from what is simulated. Vehicle detection and the arrival stream come from real footage. Signal service and waiting-time comparisons are modeled. Both controllers receive the identical detected demand stream.
+- Never describe the waiting-time reductions as measured roadside savings.
+- Do not claim that Theiatron currently controls public traffic lights. The next milestone is a supervised field/shadow pilot.
+- Keep every slide sparse enough to present the full deck in two minutes. Aim for one claim per slide and no more than roughly 35-45 visible words, excluding small source notes and contact details.
+- Put talk-track text in speaker notes only, never on the slide.
+
+VISUAL SYSTEM
+
+- Premium, confident, technically grounded, African-infrastructure focused. Avoid generic smart-city stock imagery, futuristic city renders, glowing AI brains, and excessive UI cards.
+- Dark asphalt background #10121C; surface #191C2A; primary text #F1F2F7; muted text #9096AB.
+- Use traffic-signal accents deliberately: amber #FFB724 for perception/attention, green #2FE07C for improvement/action, red #FF5147 for the fixed-timer problem. Cyan may be used only for detected East-West vehicles/count lines.
+- Use Overpass ExtraBold for headlines, Archivo for body copy, and IBM Plex Mono for metrics or technical labels if available. Use close alternatives if unavailable.
+- Use thin road-lane lines, signal dots, and detection-box corner marks as subtle recurring motifs.
+- Large takeaway headlines, strong visual hierarchy, generous margins, and high contrast. No paragraphs of tiny text.
+- Add a small "NEXTGEN 2026 FINALIST" label and the official organizer mark from the attached PDF without redrawing or altering the mark.
+- Use the supplied live-detection video exactly as captured. Cropping is allowed; do not fabricate or alter detections. Keep the screenshot as the poster frame and PDF fallback.
+
+SUPPLIED VIDEO AND FALLBACK ASSETS
+
+Primary 10-second, silent, deck-safe H.264 detection video:
+/Users/user/theiatron/outputs/pitch-assets/theiatron-live-detection-loop.mp4
+
+Primary 16:9 poster frame and PDF fallback:
+/Users/user/theiatron/outputs/pitch-assets/theiatron-car-road-detection-action.jpg
+
+SLIDE 1 - INTRODUCTION AND PROBLEM
+
+Takeaway title:
+"Traffic lights should respond to traffic, not yesterday's timer"
+
+Visible copy:
+"Most signals follow fixed schedules even as queues change minute by minute. The result is avoidable waiting, wasted fuel, and gridlock that existing infrastructure cannot see."
+
+Identity line:
+"Omu Inetimi | Founder, Theiatron | NextGen 2026 Finalist"
+
+Product line:
+"On-device AI adaptive traffic control for African cities"
+
+Visual direction:
+Use a bold, minimal opening composition. Make "fixed schedules" red and "respond to traffic" amber or green. Include a restrained signal-eye mark or three-light motif. Do not use a stock traffic-jam photograph unless it is secondary and subtle.
+
+Speaker-note intent, about 20 seconds:
+Introduce Omu and Theiatron. Explain that most junctions cannot see whether one road is empty while another is backed up, so they waste green time and people wait unnecessarily.
+
+SLIDE 2 - SOLUTION
+
+Takeaway title:
+"A camera turns an existing junction into an adaptive one"
+
+Use the primary detection video as the dominant visual, ideally filling the right 60-65% of the slide. Embed it directly in the presentation, set it to start automatically when Slide 2 appears, play muted, hide playback controls during the presentation, and loop continuously. Do not link to an external website or depend on internet access. Use the supplied 16:9 detection image as its poster frame and as the replacement image in the PDF export.
+
+Three short actions on the left:
+"SEE - detects and tracks cars, buses, motorcycles, and trucks"
+"UNDERSTAND - learns approaches and converts movement into live demand"
+"DECIDE - sends green time where pressure is highest, behind safety interlocks"
+
+Differentiator line:
+"On-device. Offline. Retrofit-ready. Designed for Raspberry Pi-class hardware."
+
+Small video caption:
+"Working prototype on previously unseen local footage"
+
+Speaker-note intent, about 25 seconds:
+Explain that this is not a prerecorded animation. The prototype processed new footage, learned the road geometry, boxed and tracked vehicles, counted arrivals by approach, and drove the control comparison. It is currently a video-based prototype; realtime camera mode and field hardware are the next engineering milestone.
+
+SLIDE 3 - RESULTS AND TRACTION
+
+Takeaway title:
+"Theiatron cut modeled average waiting by 45%"
+
+Show three large evidence figures:
+"40" - real detected vehicles
+"45%" - lower modeled average wait
+"51%" - lower modeled p95 wait
+
+Show one simple comparison, not a dense table:
+Fixed timer average wait: 10.9 s
+Theiatron average wait: 6.04 s
+
+Traction strip:
+"Working end-to-end prototype | automatic four-corridor calibration | one-click new-footage workflow | 3D digital-twin comparison"
+
+Required source note in small but legible text:
+"Source: Theiatron primary benchmark; 180 s, 40 detected vehicles; real-video demand, simulated signal service; identical arrival stream for both controllers."
+
+Optional honesty label:
+"Prototype evidence, not yet a roadside pilot"
+
+Visual direction:
+Use one clean pair of horizontal bars for 10.9 s versus 6.04 s and make 45% the dominant green numeral. Do not display a generic upward chart or reuse the Slide 2 video.
+
+Speaker-note intent, about 30 seconds:
+State that 40 vehicles were actually detected and assigned to approaches in the primary benchmark. The system replayed that exact demand through two signal policies. The adaptive policy reduced modeled average wait from 10.9 seconds to 6.04 seconds, a 44.6% reduction, while modeled p95 wait fell by 51.1%. Emphasize that the comparison is controlled and reproducible, while honestly noting that real signal response remains to be validated in a field pilot.
+
+SLIDE 4 - BUSINESS MODEL AND MARKET ENTRY
+
+Takeaway title:
+"We sell a retrofit intelligence layer, not a new road system"
+
+Target customers:
+"State and city governments | road agencies | toll-road, estate, campus, and industrial-site operators"
+
+Revenue model:
+"1. Per-intersection hardware and installation"
+"2. Annual software, support, and safety-monitoring licence"
+"3. Corridor analytics and optimization subscription"
+
+Current status:
+"Pre-revenue. The first commercial milestone is a paid three-intersection pilot."
+
+Go-to-market line:
+"One paid pilot -> independently measured results -> corridor rollout -> multi-city deployment"
+
+Market opportunity line:
+"Nigeria first, then West Africa's fixed-timer junctions"
+
+Important:
+Do not invent a TAM, pricing, or revenue forecast. If the presentation must include numerical projections, ask the user for approved unit pricing and a three-year forecast before final export. Otherwise show the commercialization sequence above.
+
+Visual direction:
+Use a single left-to-right deployment path, not a grid of business-model cards. Let the recurring licence element stand out in amber.
+
+Speaker-note intent, about 20 seconds:
+Explain that Theiatron can be sold as a retrofit unit plus recurring software/support, starting with controlled sites and road-agency pilots before expanding junction by junction and corridor by corridor.
+
+SLIDE 5 - SCALE-UP PLAN AND THE ASK
+
+Takeaway title:
+"US$100,000 turns this prototype into a three-intersection field pilot"
+
+Primary ask:
+"US$100,000 pre-seed + a state or road-agency pilot partner"
+
+Use of funds:
+"40% - pilot hardware and installation"
+"30% - realtime Raspberry Pi engineering and queue measurement"
+"15% - signal-controller safety and regulatory work"
+"15% - field operations, monitoring, and evaluation"
+
+12-month outcomes:
+"Realtime edge unit | three supervised pilot junctions | independently measured before/after results | commercial deployment package"
+
+Impact line:
+"Less waiting. Less fuel wasted at idle. More useful capacity from roads cities already own."
+
+Closing/contact line:
+"Omu Inetimi | bickqr@gmail.com | +234 904 643 0996 | theiatron.vercel.app"
+
+Visual direction:
+Make the ask unmistakable. Use one clear allocation bar and a short milestone path. End with a concrete partnership request, not a generic thank-you slide.
+
+Speaker-note intent, about 25 seconds:
+Ask for both capital and access to three pilot intersections. Explain that the funding builds the realtime Raspberry Pi field unit, completes safe controller integration, runs a supervised pilot, and produces independently measured evidence needed for commercial deployment.
+
+FINAL QUALITY CHECK
+
+- Exactly five slides.
+- 16:9 format.
+- Fits a confident two-minute delivery.
+- Every visible claim is supported by the information above.
+- The results slide repeatedly labels waits as modeled.
+- No unverified market figures or invented traction.
+- Detection video is embedded rather than externally linked, uses H.264, starts automatically, is muted, loops cleanly, and is not distorted.
+- The static detection poster frame appears in the PDF export.
+- Slide 5 contains a specific ask and contact details.
+- Export both editable PPTX and PDF.
+
+Before final export, confirm with the user that the US$100,000 ask, contact details, and absence of numerical revenue projections are correct.
