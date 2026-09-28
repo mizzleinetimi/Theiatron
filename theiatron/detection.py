@@ -9,6 +9,7 @@ owns its own model instance (nano weights are ~6 MB; four copies are cheap).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from .config import VisionConfig
 
@@ -29,6 +30,8 @@ class VehicleDetector:
 
         self.cfg = cfg
         self.model_name = model or cfg.model
+        if not Path(self.model_name).is_file():
+            raise ValueError(f"Local detector weights missing: {self.model_name}. Install the model before an offline demo.")
         self.device = device or cfg.device
         self.model = YOLO(self.model_name)
 

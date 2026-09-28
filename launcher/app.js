@@ -69,9 +69,10 @@ function renderJob(job) {
 
   if (job.state === "complete") {
     const results = job.results || {};
-    const reduction = Number(results.avg_wait_reduction_pct || 0);
-    const direction = reduction >= 0 ? "lower" : "higher";
-    resultSummary.textContent = `${job.events} arrivals analyzed · ${Math.abs(reduction).toFixed(1)}% ${direction} modeled average wait on this sample.`;
+    const verdict = TheiatronComparison.present(results);
+    runKicker.textContent = results.sample_status === "ready" ? "EXPLORATORY DEMO READY" : "ANALYSIS COMPLETE — INCONCLUSIVE";
+    resultSummary.textContent = `${job.events} arrivals analyzed · ${verdict.text}. ${verdict.reason}`;
+    resultSummary.style.color = verdict.color;
     resultSummary.hidden = false;
     openResult.href = job.viewer_url;
     openResult.hidden = false;
@@ -94,7 +95,10 @@ async function pollRun(runId) {
     const job = await response.json();
     renderJob(job);
     if (job.state === "complete") {
-      pollTimer = setTimeout(() => { window.location.href = job.viewer_url; }, 1400);
+      // Leave inconclusive evidence visible; the viewer remains available.
+      if (job.results?.sample_status === "ready" && job.results?.phase_arrivals?.NS && job.results?.phase_arrivals?.EW) {
+        pollTimer = setTimeout(() => { window.location.href = job.viewer_url; }, 1400);
+      }
     } else if (job.state !== "failed") {
       pollTimer = setTimeout(() => pollRun(runId), 900);
     }
@@ -104,7 +108,7 @@ async function pollRun(runId) {
   }
 }
 
-function upload(file) {
+async function upload(file) {
   if (!file) return;
   const allowed = [".mov", ".mp4", ".m4v", ".avi", ".mkv", ".webm"];
   const suffix = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
@@ -126,7 +130,15 @@ function upload(file) {
   runLog.textContent = "Copying the selected file into this local run…";
 
   const request = new XMLHttpRequest();
+  let session;
+  try {
+    session = await (await fetch('/api/health')).json();
+  } catch (_) {
+    showError('The local service is unavailable.');
+    return;
+  }
   request.open("POST", `/api/runs?filename=${encodeURIComponent(file.name)}`);
+  request.setRequestHeader('X-Theiatron-Token', session.token);
   request.setRequestHeader("Content-Type", file.type || "application/octet-stream");
   request.upload.onprogress = (event) => {
     if (!event.lengthComputable) return;

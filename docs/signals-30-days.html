@@ -1,0 +1,714 @@
+<title>Signals in Thirty Days</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f2f1ec;
+    --surface: #ffffff;
+    --surface-2: #e9e8e1;
+    --ink: #1b1d22;
+    --muted: #5f636c;
+    --rule: #dedbd2;
+    --accent: #d08c0c;
+    --accent-mark: #ffb020;
+    --accent-soft: #fff3d6;
+    --go: #2f8f5b;
+    --go-soft: #e4f3ea;
+    --stop: #c2412f;
+    --stop-soft: #f9e4e0;
+    --shadow: 0 1px 2px rgba(27,29,34,.06), 0 6px 20px rgba(27,29,34,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #15161a;
+      --surface: #1d1f25;
+      --surface-2: #24262d;
+      --ink: #ecebe5;
+      --muted: #9da0a8;
+      --rule: #2e313a;
+      --accent: #ffc247;
+      --accent-mark: #ffb020;
+      --accent-soft: #33290f;
+      --go: #4fc47f;
+      --go-soft: #15291d;
+      --stop: #e06a58;
+      --stop-soft: #331b17;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #15161a;
+    --surface: #1d1f25;
+    --surface-2: #24262d;
+    --ink: #ecebe5;
+    --muted: #9da0a8;
+    --rule: #2e313a;
+    --accent: #ffc247;
+    --accent-mark: #ffb020;
+    --accent-soft: #33290f;
+    --go: #4fc47f;
+    --go-soft: #15291d;
+    --stop: #e06a58;
+    --stop-soft: #331b17;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 17px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-mark); outline-offset: 2px; }
+
+  .display { font-family: "Barlow Condensed", "Arial Narrow", Impact, sans-serif; }
+  .mono { font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace; }
+  .eyebrow {
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ---------- header ---------- */
+  .masthead {
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface);
+  }
+  .masthead-inner {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 28px 32px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 22px 28px;
+    align-items: start;
+  }
+  .aspects {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 9px 7px; border-radius: 8px;
+    background: #24262d; width: 32px;
+    margin-top: 10px;
+  }
+  .aspects span { width: 18px; height: 18px; border-radius: 50%; display: block; opacity: .28; }
+  .aspects .r { background: #e04b3a; }
+  .aspects .a { background: #ffb020; opacity: 1; box-shadow: 0 0 12px rgba(255,176,32,.55); }
+  .aspects .g { background: #3fc06e; }
+  .masthead h1 {
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-weight: 700;
+    font-size: clamp(44px, 7vw, 76px);
+    line-height: .95;
+    letter-spacing: -.01em;
+    margin: 0 0 14px;
+    text-wrap: balance;
+    text-transform: uppercase;
+  }
+  .masthead p.sub {
+    max-width: 62ch;
+    margin: 0 0 20px;
+    font-size: 19px;
+    color: var(--muted);
+    text-wrap: pretty;
+  }
+  .facts { display: flex; flex-wrap: wrap; gap: 10px; }
+  .fact {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    padding: 6px 11px;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    color: var(--ink);
+    background: var(--ground);
+  }
+  .fact b { color: var(--accent); font-weight: 500; }
+
+  /* ---------- shell ---------- */
+  .shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 36px 28px 80px;
+    display: grid;
+    grid-template-columns: 250px minmax(0, 1fr);
+    gap: 44px;
+    align-items: start;
+  }
+  .rail {
+    position: sticky; top: 20px;
+    display: flex; flex-direction: column; gap: 22px;
+  }
+  .progress-card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 16px 16px 14px;
+    box-shadow: var(--shadow);
+  }
+  .progress-card .count {
+    font-family: "Barlow Condensed", sans-serif;
+    font-weight: 700; font-size: 44px; line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .progress-card .count small { font-size: 20px; color: var(--muted); font-weight: 500; }
+  .bar { height: 6px; background: var(--surface-2); border-radius: 3px; margin: 12px 0 6px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent-mark); transition: width .3s ease; }
+  .progress-card .hint { font-size: 13px; color: var(--muted); margin: 0; }
+
+  .map { display: flex; flex-direction: column; gap: 14px; }
+  .map-week .eyebrow { display: block; margin-bottom: 7px; }
+  .chips-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+  .chips-days a {
+    display: grid; place-items: center;
+    height: 30px; border-radius: 6px;
+    border: 1px solid var(--rule);
+    background: var(--surface);
+    font-family: "IBM Plex Mono", monospace; font-size: 12px;
+    color: var(--ink); text-decoration: none;
+  }
+  .chips-days a.done { background: var(--accent-mark); border-color: var(--accent-mark); color: #1b1d22; font-weight: 500; }
+  .chips-days a:hover { border-color: var(--accent); }
+  .rail-nav { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; border-top: 1px solid var(--rule); }
+  .rail-nav a { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 15px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+  .rail-nav a:hover { color: var(--accent); }
+
+  /* ---------- main ---------- */
+  main { min-width: 0; }
+  .intro { max-width: 66ch; margin-bottom: 40px; }
+  .intro p { margin: 0 0 14px; text-wrap: pretty; }
+  .intro .method { display: grid; gap: 10px; margin-top: 18px; }
+  .intro .method div { display: grid; grid-template-columns: 90px 1fr; gap: 12px; align-items: baseline; padding: 10px 0; border-top: 1px solid var(--rule); }
+  .intro .method div:last-child { border-bottom: 1px solid var(--rule); }
+  .intro .method b { font-family: "IBM Plex Mono", monospace; font-weight: 500; font-size: 13px; color: var(--accent); }
+
+  h2.week-title {
+    font-family: "Barlow Condensed", sans-serif;
+    font-weight: 700; font-size: 34px; line-height: 1; text-transform: uppercase; letter-spacing: .01em;
+    margin: 54px 0 6px; text-wrap: balance;
+  }
+  h2.week-title span { color: var(--accent); margin-right: 10px; }
+  p.week-sub { margin: 0 0 22px; color: var(--muted); max-width: 66ch; }
+
+  .day {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 20px 24px 22px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+    scroll-margin-top: 20px;
+  }
+  .day.is-done { border-color: var(--accent-mark); }
+  .day-head { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; margin-bottom: 10px; }
+  .day-num { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent); letter-spacing: .06em; }
+  .day h3 { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 26px; line-height: 1.05; margin: 0; text-wrap: balance; }
+  .done-toggle { display: inline-flex; align-items: center; gap: 7px; font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); cursor: pointer; user-select: none; }
+  .done-toggle input { width: 16px; height: 16px; accent-color: var(--accent-mark); cursor: pointer; }
+  .day p.lede { margin: 0 0 14px; max-width: 66ch; text-wrap: pretty; }
+  .block { display: grid; grid-template-columns: 96px 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid var(--rule); }
+  .block p { margin: 0; max-width: 62ch; text-wrap: pretty; }
+  .block .eyebrow { padding-top: 3px; }
+  ul.chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  ul.chips li { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; padding: 3px 8px; border-radius: 5px; background: var(--surface-2); color: var(--ink); }
+
+  /* ---------- appendices ---------- */
+  .appendix { margin-top: 64px; scroll-margin-top: 20px; }
+  .appendix h2 { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 34px; line-height: 1; text-transform: uppercase; margin: 0 0 6px; }
+  .appendix > p.lead { color: var(--muted); margin: 0 0 20px; max-width: 66ch; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--surface-2); }
+  tr:last-child td { border-bottom: 0; }
+  td.num, td .num { font-family: "IBM Plex Mono", monospace; font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.term { font-family: "IBM Plex Mono", monospace; font-size: 14px; }
+
+  .phrases { display: grid; gap: 10px; }
+  .phrase { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 18px; display: grid; gap: 4px; }
+  .phrase q { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 21px; quotes: "\201C" "\201D"; }
+  .phrase span { color: var(--muted); font-size: 15.5px; }
+
+  .tells { display: grid; gap: 10px; }
+  .tell { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--surface); }
+  .tell > div { padding: 12px 16px; font-size: 15.5px; }
+  .tell .no { background: var(--stop-soft); border-right: 1px solid var(--rule); }
+  .tell .yes { background: var(--go-soft); }
+  .tell .lab { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; display: block; margin-bottom: 4px; }
+  .tell .no .lab { color: var(--stop); }
+  .tell .yes .lab { color: var(--go); }
+
+  .qa { display: grid; gap: 8px; }
+  details { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 0 18px; }
+  summary { cursor: pointer; padding: 13px 0; font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 19px; line-height: 1.2; list-style: none; display: flex; gap: 12px; align-items: baseline; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "+"; font-family: "IBM Plex Mono", monospace; color: var(--accent); flex: 0 0 auto; }
+  details[open] summary::before { content: "\2013"; }
+  details p { margin: 0 0 14px 24px; max-width: 62ch; color: var(--ink); }
+
+  .resources { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+  .resources li { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 11px 16px; font-size: 15.5px; }
+  .resources li b { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 18px; margin-right: 6px; }
+
+  footer.colophon { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 14px; max-width: 66ch; }
+
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; gap: 26px; padding: 26px 18px 60px; }
+    .rail { position: static; }
+    .masthead-inner { padding: 30px 18px 26px; }
+    .block { grid-template-columns: 1fr; gap: 6px; }
+    .tell { grid-template-columns: 1fr; }
+    .tell .no { border-right: 0; border-bottom: 1px solid var(--rule); }
+    .day-head { grid-template-columns: auto 1fr; }
+    .day-head .done-toggle { grid-column: 1 / -1; }
+  }
+  @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="aspects" aria-hidden="true"><span class="r"></span><span class="a"></span><span class="g"></span></div>
+    <div>
+      <h1>Signals in Thirty Days</h1>
+      <p class="sub">A crash course in traffic signals and the signals industry, built for one job: walking into a room of UK investors and their traffic-engineer advisers and sounding like you have worked in this world for years.</p>
+      <div class="facts">
+        <span class="fact"><b>30</b> days</span>
+        <span class="fact"><b>75–90</b> min/day</span>
+        <span class="fact"><b>~120</b> terms to own</span>
+        <span class="fact"><b>4</b> weeks: how it works · how it's measured · who buys and sells · fluency</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="rail">
+    <div class="progress-card">
+      <div class="count"><span id="doneCount">0</span><small> / 30</small></div>
+      <div class="bar"><i id="doneBar"></i></div>
+      <p class="hint">Tick each day when done. Progress stays in this browser.</p>
+    </div>
+    <nav class="map" aria-label="Day map">
+      <div class="map-week"><span class="eyebrow">Week 1 · How it works</span><div class="chips-days" id="mapW1"></div></div>
+      <div class="map-week"><span class="eyebrow">Week 2 · Measuring better</span><div class="chips-days" id="mapW2"></div></div>
+      <div class="map-week"><span class="eyebrow">Week 3 · The industry</span><div class="chips-days" id="mapW3"></div></div>
+      <div class="map-week"><span class="eyebrow">Week 4 · Fluency</span><div class="chips-days" id="mapW4"></div></div>
+    </nav>
+    <nav class="rail-nav" aria-label="Reference sections">
+      <a href="#phrasebook">Phrasebook</a>
+      <a href="#numbers">Numbers to know cold</a>
+      <a href="#tells">Rookie tells</a>
+      <a href="#objections">Objection bank</a>
+      <a href="#resources">Sources</a>
+    </nav>
+  </aside>
+
+  <main>
+    <section class="intro">
+      <p>Nobody in the room expects you to be a traffic engineer. They expect the founder to <em>understand the incumbents' world</em> well enough that every claim lands in its vocabulary and every objection has already been thought about. That is a vocabulary-and-concepts problem, and thirty focused days solve it.</p>
+      <p>One rule above all: every concept gets anchored in Theiatron itself. You are not studying traffic signals in the abstract; you are learning to describe a system you already own in the language of the people who buy, build and regulate signals.</p>
+      <div class="method">
+        <div><b>30 min</b><span>Read or watch the day's source. Skim for concepts, not completeness.</span></div>
+        <div><b>30 min</b><span>Do the day's exercise. Most anchor the concept in Theiatron's own code, configs or results.</span></div>
+        <div><b>15 min</b><span>Flashcards: the day's terms, in your own words. Say them out loud.</span></div>
+        <div><b>Fridays</b><span>Teach-back: explain the week to Claude from memory and get quizzed. Keep a running list of questions you could not answer; clear it in those sessions.</span></div>
+      </div>
+    </section>
+
+    <!-- ================= WEEK 1 ================= -->
+    <h2 class="week-title" id="w1"><span>Week 1</span>How a signal actually works</h2>
+    <p class="week-sub">The physical and timing fundamentals. By Sunday you can stand at any junction and narrate what the controller is doing.</p>
+
+    <article class="day" id="d01" data-day="1">
+      <header class="day-head"><span class="day-num">DAY 01</span><h3>Anatomy of a signalised intersection</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Learn the parts by name: the geometry (approaches, legs, lane groups, movements, the stop bar), the field hardware (signal heads on mast arms or span wire, the cabinet at the corner, the controller inside it, load switches that actually power the lamps, the UPS) and the detection zone that tells the controller a vehicle is there. Everything you build sits somewhere on this map.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>approach / leg</li><li>lane group</li><li>movement (through, left, right)</li><li>stop bar / stop line</li><li>signal head · section · aspect</li><li>mast arm vs span wire</li><li>cabinet · controller · load switch</li><li>detection zone</li><li>UPS / battery backup</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Screenshot the demo intersection from the twin view and label every element you can. Then list what a Nigerian junction near you has and lacks: pedestal-mounted heads, no cabinet, solar panels, no detection. Those gaps are the market.</p></div>
+      <div class="block"><span class="eyebrow">Read / watch</span><p>FHWA <em>Signalized Intersections: Informational Guide</em>, chapters 1–2 (free). Practical Engineering's traffic-signal episodes on YouTube for the visual tour.</p></div>
+    </article>
+
+    <article class="day" id="d02" data-day="2">
+      <header class="day-head"><span class="day-num">DAY 02</span><h3>Phases, movements, and the ring-and-barrier diagram</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">A <em>phase</em> is a movement getting its green; a <em>cycle</em> is one full trip through all the phases. In North American practice the through movements are the even phases (2 and 6 on the main street, 4 and 8 on the side street), the left turns are the odd ones, and they are arranged in two rings separated by a barrier the rings must cross together so main-street and side-street movements never overlap. Left turns come in protected, permissive, and protected-permissive flavours (the flashing yellow arrow). Pedestrians get WALK, then a flashing DON'T WALK clearance.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>phase vs cycle (never confuse)</li><li>NEMA phase numbering 1–8</li><li>ring 1 / ring 2 / barrier</li><li>concurrent phases (2+6, 4+8)</li><li>protected · permissive · protected-permissive</li><li>flashing yellow arrow (FYA)</li><li>WALK / flashing DON'T WALK (FDW)</li><li>ped clearance</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Draw the ring-and-barrier diagram for a standard eight-phase junction. Then draw Theiatron's: it is a two-phase controller (NS / EW, no protected lefts). Practise saying that out loud, unprompted, because an engineer will spot it in ten seconds and respect you for naming it first.</p></div>
+      <div class="block"><span class="eyebrow">Read / watch</span><p>NCHRP Report 812, <em>Signal Timing Manual</em> 2nd ed., the phasing chapter (free PDF from TRB).</p></div>
+    </article>
+
+    <article class="day" id="d03" data-day="3">
+      <header class="day-head"><span class="day-num">DAY 03</span><h3>Timing parameters and the change interval</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Cycle length, splits, and the intervals inside a phase: minimum green, maximum green, the yellow <em>change</em> interval (set by a kinematic formula from approach speed, typically 3–6 s) and the all-red <em>clearance</em> interval (crossing width over speed, typically 1–2 s). Between every phase you lose time to startup and clearance; that <em>lost time</em>, about 4 s per phase, is the single most important number in adaptive control, because every extra switch pays it again.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>cycle length · split · offset</li><li>min green · max green</li><li>yellow change interval</li><li>all-red clearance interval</li><li>startup lost time · clearance lost time</li><li>effective green</li><li>dilemma zone</li><li>passage / extension time</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Compute yellow and all-red for a 50 km/h approach by hand. Then open <code class="mono">configs/intersection.yaml</code>: yellow 3 s, all-red 1 s, min green 12 s, max green 45 s. You already discovered in the parameter sweeps that each switch costs about 6 s of capacity — that is lost time, measured. Say it that way.</p></div>
+      <div class="block"><span class="eyebrow">Read / watch</span><p>Signal Timing Manual, the intervals chapter; ITE's change-and-clearance guidance for the formulas.</p></div>
+    </article>
+
+    <article class="day" id="d04" data-day="4">
+      <header class="day-head"><span class="day-num">DAY 04</span><h3>Pretimed, actuated, coordinated — the control modes</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Pretimed (fixed-time) signals run the same plan regardless of traffic, often with time-of-day plans. Semi-actuated signals keep the main street green until a detector <em>calls</em> the side street. Fully actuated signals extend each green as vehicles keep arriving and end it when a gap appears (<em>gap-out</em>) or the maximum is reached (<em>max-out</em>). Coordinated-actuated signals do this inside a fixed background cycle so a corridor stays in step. The insight for your pitch: actuation responds to <em>presence at the stop bar</em>, not to queues or approaching platoons — the information gap a camera fills.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>pretimed / fixed-time</li><li>time-of-day (TOD) plans</li><li>semi-actuated · fully actuated</li><li>call · detector actuation</li><li>gap-out vs max-out</li><li>recall (min, max, ped, soft)</li><li>coordinated-actuated</li><li>force-off · yield point</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Describe Theiatron's policy in this vocabulary: an isolated, fully actuated, <em>queue-aware</em> controller with a 12 s minimum green, a 45 s maximum, and pressure-based pre-emption of the max. Rehearse until it comes out in one breath.</p></div>
+      <div class="block"><span class="eyebrow">Read / watch</span><p>Signal Timing Manual, actuated-control chapter. SUMO's "actuated" traffic-light documentation page is a concrete, code-level description of gap-out logic.</p></div>
+    </article>
+
+    <article class="day" id="d05" data-day="5">
+      <header class="day-head"><span class="day-num">DAY 05</span><h3>Adaptive signal control: forty years of prior art</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Adaptive systems have existed since the 1980s. SCOOT (TRL, UK) and SCATS (Sydney) are centralised: they tune cycle, split and offset for whole networks from loop data. Surtrac (Pittsburgh, CMU spin-out), InSync and ACS-Lite are decentralised, intersection-by-intersection. Reported benefits: FHWA generally cites around 10% average delay improvement across deployments, vendor pilots claim 20–40%. The question an investor should ask, and you should answer first: if this has existed for decades, why isn't it everywhere? Cost, detection maintenance, communications, and scarce engineering staff. That is Theiatron's thesis in one sentence.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>adaptive vs responsive</li><li>centralised vs decentralised</li><li>SCOOT · SCATS · UTOPIA</li><li>Surtrac · InSync · ACS-Lite · SynchroGreen</li><li>ASCT (FHWA's acronym)</li><li>detection dependency</li><li>degree of saturation (SCATS' core measure)</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Write three sentences each on how Theiatron differs from SCOOT and from Surtrac. Hint: Surtrac is your closest technical cousin (decentralised, schedule-based, sensor-driven); your difference is cost, offline operation and self-calibration for junctions that today have nothing.</p></div>
+      <div class="block"><span class="eyebrow">Read / watch</span><p>FHWA Adaptive Signal Control Technology (ASCT) overview from the Every Day Counts programme; the Surtrac ICAPS 2013 paper by Smith et al. (abstract and results are enough).</p></div>
+    </article>
+
+    <article class="day" id="d06" data-day="6">
+      <header class="day-head"><span class="day-num">DAY 06</span><h3>Detection: the Achilles heel</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Inductive loops cut into the pavement (cheap-ish, die with resurfacing), video detection with virtual zones (Iteris, Autoscope — struggles at night, in rain, with occlusion: exactly the objections you'll hear), radar (Wavetronix, good for dilemma-zone protection), the GRIDSMART fisheye camera at the centre of the junction (closest form-factor analogue to your unit), thermal (FLIR), wireless magnetometers (Sensys), and probe data. Every actuated or adaptive system is only as good as its detection, and detection is what fails first in the field.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>inductive loop · saw-cut</li><li>presence vs pulse detection</li><li>stop-bar vs advance detection</li><li>video detection · virtual loop</li><li>radar · thermal · magnetometer</li><li>detector failure · max recall fallback</li><li>occupancy</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Build a table: technology, cost, what it measures, how it fails. Place Theiatron in it: detection <em>and</em> control in one box, which is the actual novelty. Note the classic failure story: "the loops died at the last resurfacing, so the side street sits on max recall and the junction runs like it's fixed-time again."</p></div>
+      <div class="block"><span class="eyebrow">Read / watch</span><p>FHWA <em>Traffic Detector Handbook</em> (free), skim the technology comparison chapter.</p></div>
+    </article>
+
+    <article class="day" id="d07" data-day="7">
+      <header class="day-head"><span class="day-num">DAY 07</span><h3>Field day and teach-back</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Stand at a signalised junction for twenty minutes. Time the cycle. Work out whether it's pretimed or actuated. Count the phases. Watch what happens to pedestrians. If the signal is dark, or a police officer is directing traffic, write that down with the time of day — those are the field facts that make your market story credible.</p>
+      <div class="block"><span class="eyebrow">Do</span><p>Write "How a traffic signal works" as a one-page explainer from memory, then teach it to Claude and get quizzed. Start your flashcard deck with Week 1's terms.</p></div>
+    </article>
+
+    <!-- ================= WEEK 2 ================= -->
+    <h2 class="week-title" id="w2"><span>Week 2</span>Measuring "better"</h2>
+    <p class="week-sub">The performance vocabulary. This is the week that converts "44% less waiting" into claims an engineer can't wave away.</p>
+
+    <article class="day" id="d08" data-day="8">
+      <header class="day-head"><span class="day-num">DAY 08</span><h3>Flow, capacity, and saturation</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Volume is vehicles per hour; capacity is what a lane can discharge on green. The base <em>saturation flow rate</em> is 1,900 passenger cars per hour per lane, about one vehicle every 2 s once a queue is moving. Capacity is saturation flow times the share of the cycle that is green (g/C). The <em>v/c ratio</em> says how close to the edge you are; above about 0.9 the queue never fully clears. Motorcycles, buses and trucks are converted with passenger-car equivalents, which matters enormously in okada- and keke-heavy Nigerian traffic.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>volume · flow rate · peak-hour factor</li><li>saturation flow rate (1,900 pc/h/ln)</li><li>saturation headway (~2 s)</li><li>g/C ratio · capacity</li><li>v/c · degree of saturation</li><li>critical lane volume</li><li>PCU / PCE</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Compute each approach's capacity in the demo intersection from saturation flow and g/C. Notice that <code class="mono">queue.sat_headway: 2.0</code> in your config is 1,800 veh/h/ln — you have been using the industry number all along.</p></div>
+      <div class="block"><span class="eyebrow">Read / watch</span><p>Any state DOT signal design manual's capacity chapter (they mirror the Highway Capacity Manual, which is paid).</p></div>
+    </article>
+
+    <article class="day" id="d09" data-day="9">
+      <header class="day-head"><span class="day-num">DAY 09</span><h3>Control delay and Level of Service</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">The industry's headline metric is <em>control delay</em> per vehicle: the total extra time caused by the signal, including slowing, queue move-up, stopped time and accelerating away. It maps to Level of Service grades: A up to 10 s, B to 20, C to 35, D to 55, E to 80, F beyond. Reporting "we cut control delay from 10.9 s to 6.0 s, LOS B to LOS A" is the sentence funders and engineers are wired to hear. Also know stops, queue length (average and 95th-percentile back-of-queue) and throughput.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>control delay (not just stopped delay)</li><li>uniform · incremental · initial-queue delay</li><li>LOS A–F thresholds</li><li>stops per vehicle</li><li>95th-percentile queue</li><li>throughput</li><li>travel time index</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Restate Theiatron's results as LOS. Then explain why the 95th-percentile figure (36.7 s → 18 s) matters more than the average to a commuter and to a politician. Be ready to volunteer that the demo footage is light traffic and that the SUMO benchmark will cover peak conditions.</p></div>
+    </article>
+
+    <article class="day" id="d10" data-day="10">
+      <header class="day-head"><span class="day-num">DAY 10</span><h3>Webster's method — the classic you will be tested on</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Webster (1958) gave the industry its formula for the delay-minimising pretimed cycle: C₀ = (1.5L + 5) / (1 − Y), with L the total lost time per cycle and Y the sum of the critical flow ratios. Greens are then split in proportion to each phase's flow ratio. Every adviser will ask whether your fixed-time baseline was even tuned. The answer is "the current baseline is a 30 s split; a Webster-optimised baseline and a NEMA actuated baseline are in the benchmark plan" — and you should be able to compute Webster's cycle on a napkin.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>Webster's optimal cycle</li><li>critical flow ratio (v/s)</li><li>sum of critical flow ratios (Y)</li><li>proportional split</li><li>tuned vs untuned baseline</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Compute C₀ for the demo intersection from your per-approach counts. Compare it with the 60 s cycle you benchmarked against. Write down the honest sentence about the baseline.</p></div>
+    </article>
+
+    <article class="day" id="d11" data-day="11">
+      <header class="day-head"><span class="day-num">DAY 11</span><h3>Coordination, progression, and the tools engineers live in</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Along a corridor, signals share a cycle length and are staggered by <em>offsets</em> so platoons arrive on green — the green wave, drawn on a time-space diagram, sized by its <em>bandwidth</em>. Two-way progression is always a compromise. When demand exceeds capacity, no timing fixes it: queues spill back, and the job becomes metering and managing gridlock. The tools: Synchro (timing plans, the industry standard), PTV Vissim (microsimulation), TRANSYT in the UK, and SUMO as the open-source microsim you now use.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>offset · time-space diagram · bandwidth</li><li>progression · green wave</li><li>background cycle · force-off</li><li>oversaturation · spillback · gridlock</li><li>Synchro · Vissim · TRANSYT · SUMO</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Explain in four sentences why an isolated adaptive controller must eventually become corridor-aware, and where that sits on Theiatron's roadmap (later; the wedge is the vast number of isolated junctions with no control at all).</p></div>
+    </article>
+
+    <article class="day" id="d12" data-day="12">
+      <header class="day-head"><span class="day-num">DAY 12</span><h3>ATSPM — how agencies now manage signals</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Automated Traffic Signal Performance Measures come from high-resolution (10 Hz) controller event logs. The Purdue Coordination Diagram shows when vehicles arrive relative to the green; <em>arrivals on green</em> is the share arriving during green; a <em>split failure</em> is a green that ends with queue still waiting; phase termination shows whether phases gap out, max out or get forced off. Utah DOT open-sourced the dashboard and FHWA pushed it nationally. If Theiatron emits these measures, it speaks the agency's native language.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>hi-res data · event codes</li><li>Purdue Coordination Diagram (PCD)</li><li>arrivals on green (AoG)</li><li>platoon ratio</li><li>split failure</li><li>phase termination (gap-out / max-out / force-off)</li><li>approach delay · ped delay</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Open UDOT's public ATSPM site, pick any intersection, and read one Purdue Coordination Diagram until you can narrate it. Define arrivals-on-green and split failure out loud, twice.</p></div>
+      <div class="block"><span class="eyebrow">Read / watch</span><p>udottraffic.utah.gov/atspm and FHWA's Every Day Counts ATSPM materials; Purdue's ATSPM guides (Darcy Bullock's group) for the definitions.</p></div>
+    </article>
+
+    <article class="day" id="d13" data-day="13">
+      <header class="day-head"><span class="day-num">DAY 13</span><h3>Max-pressure and the research frontier</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Max-pressure (Varaiya, 2013) serves the phase with the largest queue imbalance and is provably throughput-optimal; it is the baseline academic reviewers expect you to beat. Self-organising control (SOTL) and reinforcement learning (PressLight, CoLight, MPLight) dominate papers but not deployments, for three reasons agencies will name: safety, explainability, and the simulation-to-reality gap. Your own sweep data — that switch-eager policies lose to a fixed timer because each switch burns lost time — is a better argument than any paper.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>max-pressure</li><li>throughput-optimal</li><li>SOTL</li><li>RL signal control (PressLight, CoLight)</li><li>sim-to-real gap</li><li>hysteresis</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Say in one breath: "Theiatron runs a max-pressure-flavoured policy with hysteresis and hard minimum-green and clearance constraints, because provable throughput is worth nothing if the controller oscillates." Then explain why you didn't "just use RL".</p></div>
+      <div class="block"><span class="eyebrow">Read / watch</span><p>Varaiya's max-pressure paper (abstract and intuition); the RESCO benchmark README for how baselines are compared.</p></div>
+    </article>
+
+    <article class="day" id="d14" data-day="14">
+      <header class="day-head"><span class="day-num">DAY 14</span><h3>Rewrite your results in industry language</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Take the results section of the one-pager and rewrite it using control delay, LOS, 95th-percentile queue and arrivals-on-green. Nothing else changes — same evidence, new vocabulary — and the difference in how it reads to an engineer is total.</p>
+      <div class="block"><span class="eyebrow">Do</span><p>Teach-back Week 2 to Claude. Flashcards for Weeks 1–2 combined; anything you stumble on goes on the "couldn't answer" list.</p></div>
+    </article>
+
+    <!-- ================= WEEK 3 ================= -->
+    <h2 class="week-title" id="w3"><span>Week 3</span>The industry: standards, safety, vendors, money</h2>
+    <p class="week-sub">Who buys, who sells, what it costs, what the rules are. This is the week that makes investors believe you know the market, not just the technology.</p>
+
+    <article class="day" id="d15" data-day="15">
+      <header class="day-head"><span class="day-num">DAY 15</span><h3>Standards and the hardware landscape</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">United States: NEMA TS2 governs cabinets and controllers electrically; the ATC family (5201 controller, 5301 cabinet, 5401 application API) defines the modern Linux controller; NTCIP 1202 is the SNMP object model central systems use to talk to signal controllers — your integration standard; MUTCD Part 4 sets the <em>warrants</em> that justify a signal at all. United Kingdom: TSRGD is the law, TOPAS registers approved equipment, UTMC is the open framework councils buy against, and TRL's SCOOT (networks) and MOVA (isolated junctions) are the reference adaptive products. Nigeria: FRSC federally, state ministries of transport, and in Lagos LASTMA and LAMATA.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>NEMA TS2</li><li>ATC 5201 / 5301 / 5401</li><li>NTCIP 1202 · SNMP · MIB</li><li>MUTCD Part 4 · signal warrants</li><li>TSRGD · TOPAS · UTMC</li><li>SCOOT · MOVA · UTC</li><li>FRSC · LASTMA · LAMATA</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Write five sentences on why NTCIP 1202 is Theiatron's controller interface and why MOVA is the name to invoke in a UK room ("MOVA for junctions that will never get loops"). Skim the NTCIP 1202 object tree just to see phase, call and preempt objects exist.</p></div>
+      <div class="block"><span class="eyebrow">Read / watch</span><p>NTCIP 1202 v03A PDF at ntcip.org (skim); TRL's MOVA and SCOOT pages; the TOPAS website's registered-product list.</p></div>
+    </article>
+
+    <article class="day" id="d16" data-day="16">
+      <header class="day-head"><span class="day-num">DAY 16</span><h3>Safety-critical design: the conflict monitor and flash</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Every cabinet contains a hardware watchdog — the conflict monitor, or Malfunction Management Unit in TS2 — that independently checks for conflicting greens, missing reds and short yellows, and drops the junction into <em>flash</em> (flashing amber main street, flashing red side street) the instant anything looks wrong. Flash is the universal safe state. Preemption (rail, emergency vehicles via Opticom) and transit priority sit on top. The doctrine you must repeat: control software may <em>request</em>; only certified hardware <em>enforces</em>. Theiatron's unit decides, the safety layer guards.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>conflict monitor · MMU</li><li>flash · flash transfer relay</li><li>conflicting greens · red failure</li><li>preemption vs priority (EVP, TSP)</li><li>fail-safe · interlock</li><li>certified vs custom</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Answer, calmly and completely: "What happens when your box crashes at 2 a.m.?" (The conflict monitor puts the junction on flash, exactly as with any controller fault; on our own integrated unit a hardware watchdog does the same.) Then explain why a software-only interlock is disqualifying.</p></div>
+    </article>
+
+    <article class="day" id="d17" data-day="17">
+      <header class="day-head"><span class="day-num">DAY 17</span><h3>The vendors — know the names cold</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Controllers and systems: Econolite, Yunex Traffic (the former Siemens Mobility ITS business, SCOOT's commercial home), Swarco (which absorbed McCain), Q-Free/Intelight, Cubic/Trafficware (Synchro), Kapsch. Detection: Iteris (Vantage video), Miovision (video turning-movement counts — closest to your data wedge), GRIDSMART (fisheye, now Cubic), Wavetronix (radar), FLIR (thermal), Sensys (magnetometers). The AI-edge startups an investor will compare you to: NoTraffic (sensors plus cloud adaptive, well funded), Vivacity Labs (UK, Cambridge — sensors and a signal-control product trialled with councils; the London room's mental comparable), Rapid Flow/Surtrac, Derq.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>Econolite · Yunex · Swarco · Q-Free · Cubic</li><li>Iteris · Miovision · GRIDSMART · Wavetronix · FLIR · Sensys</li><li>NoTraffic · Vivacity · Surtrac · Derq</li><li>capex + maintenance model</li><li>per-intersection SaaS</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>For NoTraffic, Vivacity and Miovision write one line each: what they sell, to whom, how they charge, and Theiatron's difference (offline, self-calibrating, no-infrastructure junctions, an order of magnitude cheaper). These three lines are your competitive slide.</p></div>
+    </article>
+
+    <article class="day" id="d18" data-day="18">
+      <header class="day-head"><span class="day-num">DAY 18</span><h3>What signals cost — the unit economics</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Anchor numbers (US, commonly cited): a new signal installation runs roughly $250k–$500k; adding adaptive control is tens of thousands per intersection (FHWA-cited ranges around $20k–$65k) before communications and detection; loops cost thousands per zone and require pavement cuts; annual maintenance is thousands per signal; and agencies run thin, often one engineer per hundreds of signals. Value-of-time arithmetic (delay saved × vehicles × value of time, plus fuel and emissions) is how benefits get monetised in a business case.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>installation cost · O&amp;M cost</li><li>ASCT cost per intersection</li><li>value of time · benefit-cost ratio</li><li>total cost of ownership</li><li>capex vs opex framing</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Research day for Nigeria: find published counts of signalised junctions in Lagos, Abuja and Port Harcourt, the share that function, and the power situation. Cite sources. Build the "cost per intersection: incumbent vs Theiatron" slide.</p></div>
+      <div class="block"><span class="eyebrow">Read / watch</span><p>FHWA ASCT fact sheets; the ITS JPO knowledge resources cost database at itskrs.its.dot.gov (real deployment costs, searchable).</p></div>
+    </article>
+
+    <article class="day" id="d19" data-day="19">
+      <header class="day-head"><span class="day-num">DAY 19</span><h3>How agencies buy, and how pilots actually work</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Agencies buy through RFPs and framework contracts, with pilots and proofs-of-concept as the side door; funding comes from city budgets, national grants (SMART grants in the US, DfT and Innovate UK in Britain) and development banks for African cities. A credible pilot is staged — <em>shadow mode</em> (observe and log, no authority), then advisory, then control with hardware fail-safe — with KPIs agreed up front (control delay, arrivals-on-green, split failures), a before/after study design, clear data ownership and privacy terms (counts only, no identities), insurance, and a local maintenance plan. Traffic studies themselves are a product: Miovision-style counts are sold per intersection-day, which is your shadow-mode wedge revenue.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>RFP · sole-source pilot · framework</li><li>shadow → advisory → control</li><li>before/after evaluation</li><li>KPIs · MOU · LOI</li><li>data ownership · PII</li><li>turning movement count (TMC)</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Draft the pilot proposal outline: objectives, KPIs, duration, roles, fail-safe, exit criteria. Read one real RFP for adaptive signal control end to end — the requirements list is a free map of what buyers care about.</p></div>
+    </article>
+
+    <article class="day" id="d20" data-day="20">
+      <header class="day-head"><span class="day-num">DAY 20</span><h3>The London room: UK specifics</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Transport for London runs SCOOT across much of the capital's roughly six thousand signals under a central UTC system; councils are the buyers elsewhere; TRL wrote the reference products; Yunex, Swarco, Telent and Dynniq install and integrate. Vivacity Labs is the comparable in every UK investor's head. Watch the vocabulary trap: in Britain a <em>phase</em> is a single movement's signal and a <em>stage</em> is the set of phases that run together — the reverse of US usage — and it's a junction, not an intersection; signalised, not signalized; pelican, puffin and toucan crossings; MOVA site, SCOOT node, linked signals.</p>
+      <div class="block"><span class="eyebrow">Own these</span><ul class="chips"><li>TfL · UTC · SCOOT node</li><li>stage vs phase (UK usage)</li><li>junction · signalised</li><li>MOVA site · linked signals</li><li>pelican / puffin / toucan</li><li>TOPAS · UTMC · DfT</li><li>Vivacity as comparable</li></ul></div>
+      <div class="block"><span class="eyebrow">Do</span><p>Rewrite your 60-second pitch in UK terms. Prepare the answer to "why not just deploy MOVA or SCOOT in Nigeria?" — loops, comms, calibration expertise and cost — and the answer to "how are you different from Vivacity?" — they sell sensors and data to well-funded councils; you sell autonomous control for junctions that have nothing, offline.</p></div>
+      <div class="block"><span class="eyebrow">Read / watch</span><p>TfL's SCOOT pages; TRL's MOVA page; Vivacity Labs' product pages; the UTMC framework overview.</p></div>
+    </article>
+
+    <article class="day" id="d21" data-day="21">
+      <header class="day-head"><span class="day-num">DAY 21</span><h3>Industry map and a mock investor</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">From memory, draw the industry on one page: standards, vendors by layer, buyers by country, price anchors, and where Theiatron sits. Then run a mock conversation with Claude playing a Vivacity-savvy UK investor who has a traffic-engineer adviser on the call.</p>
+      <div class="block"><span class="eyebrow">Do</span><p>Teach-back Week 3. Flashcards for all three weeks. Everything you fumbled goes into the objection bank below with a rehearsed answer.</p></div>
+    </article>
+
+    <!-- ================= WEEK 4 ================= -->
+    <h2 class="week-title" id="w4"><span>Week 4</span>Fluency</h2>
+    <p class="week-sub">Putting Theiatron into the industry's language and drilling until it's automatic.</p>
+
+    <article class="day" id="d22" data-day="22">
+      <header class="day-head"><span class="day-num">DAY 22</span><h3>Theiatron, described by an engineer</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Map every component to its industry name: the count line is a virtual detection zone, and because it sits upstream it is <em>advance</em> detection, not stop-bar presence; an arrival is an actuation, a call; the controller is an isolated, fully actuated, queue-aware adaptive policy in the MOVA class; the co-simulation is offline evaluation on replayed field demand; the twin is trajectory-level validation of the detection; the edge unit fuses detector and controller into one box with a hardware fail-safe.</p>
+      <div class="block"><span class="eyebrow">Do</span><p>Write "the engineer's paragraph" describing Theiatron with no marketing words at all. Have Claude red-pen any term misused. This paragraph goes into the deck's appendix and the data room.</p></div>
+    </article>
+
+    <article class="day" id="d23" data-day="23">
+      <header class="day-head"><span class="day-num">DAY 23</span><h3>Objection drill I — the engineer's questions</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Twenty questions a traffic engineer will ask, answered out loud until the answers are boring. The bank is below; today you internalise the first half: detection reliability at night and in rain, occlusion, pedestrians, clearance intervals, fail-safe, oversaturation, camera failure, calibration drift, baseline fairness, and why a camera rather than radar or loops.</p>
+      <div class="block"><span class="eyebrow">Do</span><p>Claude asks, you answer, no notes. Record yourself once and listen for hedging words.</p></div>
+    </article>
+
+    <article class="day" id="d24" data-day="24">
+      <header class="day-head"><span class="day-num">DAY 24</span><h3>Objection drill II — the investor's questions</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Market size and the count of unsignalised or dark junctions, why now, the incumbents and the AI-edge startups, certification and regulatory path, unit economics, the data-wedge revenue before control revenue, defensibility, team gaps, time to hardware, the pilot pipeline. Every answer ends with a number or a named milestone.</p>
+      <div class="block"><span class="eyebrow">Do</span><p>Same drill, investor questions. Then swap: you play the investor and make Claude defend the company; note which answers you'd want to steal.</p></div>
+    </article>
+
+    <article class="day" id="d25" data-day="25">
+      <header class="day-head"><span class="day-num">DAY 25</span><h3>Deep-read day</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">One long sitting with primary sources: the Signal Timing Manual's actuated and coordination chapters properly this time, one ATSPM case study, the Surtrac paper's results section, and the public materials of NoTraffic and Vivacity read as a competitor would.</p>
+      <div class="block"><span class="eyebrow">Do</span><p>Keep a page of quotable facts with sources. These become footnotes in the deck — sourced numbers are what separate founders who know the industry from founders who read a blog.</p></div>
+    </article>
+
+    <article class="day" id="d26" data-day="26">
+      <header class="day-head"><span class="day-num">DAY 26</span><h3>Numbers day</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Memorise the cheat-sheet below until the numbers come out unprompted: saturation flow, lost time, yellow and all-red ranges, LOS thresholds, typical cycle lengths, adaptive benefit ranges, cost anchors, and Theiatron's own figures with their caveats attached.</p>
+      <div class="block"><span class="eyebrow">Do</span><p>Claude fires numbers questions at random for fifteen minutes. Anything under 100% goes back on the deck.</p></div>
+    </article>
+
+    <article class="day" id="d27" data-day="27">
+      <header class="day-head"><span class="day-num">DAY 27</span><h3>Glossary self-test</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Every term chip on this page, defined from memory in one sentence each, in your own words. Mark the ones that came out fuzzy and re-read that day's source.</p>
+    </article>
+
+    <article class="day" id="d28" data-day="28">
+      <header class="day-head"><span class="day-num">DAY 28</span><h3>Mock: forty-five minutes with a traffic engineer</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Claude plays a state traffic engineer with twenty years on signals, sceptical of "AI" and protective of safety. You present Theiatron, demo the twin and A/B views, and take questions. Debrief on every place you reached for a marketing word instead of an engineering one.</p>
+    </article>
+
+    <article class="day" id="d29" data-day="29">
+      <header class="day-head"><span class="day-num">DAY 29</span><h3>Mock: the investor meeting with a technical adviser</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">A partner who cares about market and traction, plus an adviser who cares about the baseline, the fail-safe and the certification path. Run the full 3-minute demo script, then thirty minutes of questions. Polish the talking points afterwards.</p>
+    </article>
+
+    <article class="day" id="d30" data-day="30">
+      <header class="day-head"><span class="day-num">DAY 30</span><h3>Your industry point of view</h3><label class="done-toggle"><input type="checkbox"> Done</label></header>
+      <p class="lede">Write a one-page memo in your own voice: where signal control is today, what is broken about how it's bought and maintained, why the moment is now (cheap edge AI, cameras that replace detection <em>and</em> control, cities with nothing to retrofit), and why Theiatron. Investors fund founders with a point of view on their industry; this page is the proof you have one.</p>
+      <div class="block"><span class="eyebrow">Do</span><p>Publish the memo internally (repo docs), attach it to the data room, and plan the next ninety days of depth: the SUMO benchmark results, the Edge v0 build, and a shadow-mode pilot proposal in a state's language.</p></div>
+    </article>
+
+    <!-- ================= APPENDICES ================= -->
+    <section class="appendix" id="phrasebook">
+      <h2>Phrasebook</h2>
+      <p class="lead">Sentences insiders actually say. Learn the meaning, then start using them — sparingly, correctly.</p>
+      <div class="phrases">
+        <div class="phrase"><q>The side street split-fails every cycle in the PM peak.</q><span>The minor approach's green ends with queue still waiting, cycle after cycle — capacity or split problem.</span></div>
+        <div class="phrase"><q>Phase 2 gaps out early and 6 maxes out.</q><span>One direction's green ends because traffic thinned; the opposite direction runs to its maximum and is cut off with demand remaining.</span></div>
+        <div class="phrase"><q>Put 2 and 6 on min recall.</q><span>Always serve the main-street throughs each cycle, whether or not a detector calls them.</span></div>
+        <div class="phrase"><q>It's a 90-second background cycle with a 60/40 split.</q><span>Coordinated plan: 90 s cycle, 60% of it to the main street.</span></div>
+        <div class="phrase"><q>The offsets are stale; progression northbound is broken.</q><span>Timing hasn't been updated for current traffic, so platoons hit red.</span></div>
+        <div class="phrase"><q>Arrivals on green are 45%.</q><span>Fewer than half the vehicles reach the signal during green — poor coordination.</span></div>
+        <div class="phrase"><q>The MMU dropped it to flash.</q><span>The conflict monitor detected a fault and put the junction in flashing operation.</span></div>
+        <div class="phrase"><q>Protected-permissive left with a flashing yellow arrow.</q><span>Left turn gets a protected green arrow, then may proceed on a flashing yellow arrow yielding to oncoming traffic.</span></div>
+        <div class="phrase"><q>The loops died at the resurfacing, so that approach has been on max recall for a year.</q><span>Detection failed; the controller assumes constant demand and runs like fixed-time.</span></div>
+        <div class="phrase"><q>We're oversaturated — no cycle length fixes that.</q><span>Demand exceeds capacity; the tools are metering and managing queues, not timing.</span></div>
+        <div class="phrase"><q>Four seconds of yellow and one-and-a-half of all-red.</q><span>The change and clearance intervals, stated the way engineers state them.</span></div>
+        <div class="phrase"><q>Stop-bar presence versus advance detection.</q><span>Detecting a vehicle waiting at the line versus detecting it upstream, on approach — Theiatron does the latter.</span></div>
+        <div class="phrase"><q>Does it even warrant a signal?</q><span>Do the MUTCD volume, pedestrian or crash thresholds justify installing one at all?</span></div>
+        <div class="phrase"><q>v/c is at 0.95; it's at capacity.</q><span>Volume-to-capacity ratio near one: queues barely clear.</span></div>
+        <div class="phrase"><q>We report control delay, not stopped delay.</q><span>The full delay caused by the signal, including deceleration and acceleration — the HCM measure.</span></div>
+        <div class="phrase"><q>Shadow mode first, then advisory, then control.</q><span>The staged pilot: observe and log with no authority, then recommend, then act with a hardware fail-safe.</span></div>
+        <div class="phrase"><q>It's an isolated MOVA site, not linked.</q><span>UK: a single adaptive junction not coordinated with neighbours.</span></div>
+        <div class="phrase"><q>Two stages, no dedicated right-turn phase.</q><span>UK usage: stages are the groups of movements that run together — say this in London, "phases" in New York.</span></div>
+        <div class="phrase"><q>Ped clearance at 3.5 feet per second.</q><span>Flashing DON'T WALK sized to let a slow walker cross — 1.2 m/s in UK terms.</span></div>
+        <div class="phrase"><q>Hi-res data off the controller feeds the ATSPM dashboard.</q><span>Ten-per-second event logs are the raw material of modern signal performance management.</span></div>
+      </div>
+    </section>
+
+    <section class="appendix" id="numbers">
+      <h2>Numbers to know cold</h2>
+      <p class="lead">Anchor figures. Ranges are typical practice; vendor and study figures are labelled as reported.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Quantity</th><th>Figure</th><th>Why it matters</th></tr></thead>
+        <tbody>
+          <tr><td>Base saturation flow rate</td><td class="num">1,900 pc/h/ln</td><td>The capacity building block; ~1,800 in practice (2 s headway). Your config uses 2 s.</td></tr>
+          <tr><td>Lost time per phase</td><td class="num">≈ 4 s</td><td>Startup ~2 s + clearance ~2 s. Every extra switch pays it; you measured ~6 s in the sweeps.</td></tr>
+          <tr><td>Yellow change interval</td><td class="num">3 – 6 s</td><td>From approach speed via the ITE formula. Yours: 3 s.</td></tr>
+          <tr><td>All-red clearance</td><td class="num">1 – 2 s</td><td>Crossing width over speed. Yours: 1 s.</td></tr>
+          <tr><td>Minimum green (through)</td><td class="num">4 – 7 s</td><td>Longer where pedestrians cross. Yours: 12 s, chosen from the sweeps.</td></tr>
+          <tr><td>WALK / ped clearance</td><td class="num">≥ 7 s / 3.5 ft·s⁻¹</td><td>Pedestrian timing constrains every phase you'd like to shorten.</td></tr>
+          <tr><td>Typical cycle length</td><td class="num">60 – 120 s</td><td>Light isolated junctions 40–60 s; heavy corridors 150 s+. Your baseline: 60 s.</td></tr>
+          <tr><td>LOS thresholds (control delay)</td><td class="num">A ≤10 · B ≤20 · C ≤35 · D ≤55 · E ≤80 · F &gt;80 s</td><td>How results get graded. Fixed 10.9 s (B) → Theiatron 6.0 s (A) in the demo.</td></tr>
+          <tr><td>Near capacity</td><td class="num">v/c ≥ 0.9</td><td>Above 1.0 is oversaturated; timing alone can't fix it.</td></tr>
+          <tr><td>Passenger-car equivalents</td><td class="num">m/c 0.3–0.5 · bus 2–3 · truck 2–3</td><td>Weight arrivals for motorcycle-heavy traffic — the PCU-weighted counts a Nigerian pilot needs.</td></tr>
+          <tr><td>Adaptive control benefit</td><td class="num">≈ 10% avg (FHWA) · 20–40% pilots (reported)</td><td>SCOOT literature ~12% vs well-tuned fixed-time; Surtrac's Pittsburgh pilot reported ~25% travel time and ~40% wait reductions.</td></tr>
+          <tr><td>New signal installation (US)</td><td class="num">$250k – $500k+</td><td>Commonly cited range; explains why so many junctions worldwide have nothing.</td></tr>
+          <tr><td>Adaptive add-on per intersection</td><td class="num">≈ $20k – $65k</td><td>FHWA-cited range, before comms and detection. Theiatron's BOM target: a few hundred pounds.</td></tr>
+          <tr><td>Theiatron demo result</td><td class="num">−44.6% avg · −51.1% p95 wait</td><td>Co-simulation on 41 real vehicles over 180 s, light traffic. Always attach the caveat.</td></tr>
+          <tr><td>Theiatron edge inference</td><td class="num">12.1 ms / frame</td><td>CPU-only ONNX at 416 px on an M2; Pi 5 numbers pending measurement (NCNN ~2× ONNX per Ultralytics' Pi benchmarks).</td></tr>
+          <tr><td>Theiatron policy constants</td><td class="num">min 12 s · max 45 s · Y 3 s · AR 1 s</td><td>State them like an engineer states a timing sheet.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section class="appendix" id="tells">
+      <h2>Rookie tells</h2>
+      <p class="lead">Things that make an engineer stop listening, and what to say instead.</p>
+      <div class="tells">
+        <div class="tell"><div class="no"><span class="lab">Never</span>"When the cycle turns green…" / "the light"</div><div class="yes"><span class="lab">Instead</span>"When phase 2 goes green…" / "the signal", "the head", "the phase". Cycle is the whole loop; phase is the movement.</div></div>
+        <div class="tell"><div class="no"><span class="lab">Never</span>"AI will replace traffic engineers."</div><div class="yes"><span class="lab">Instead</span>"AI gives every junction the attention only the best-funded ones get today. Engineers set the constraints; the unit enforces them 24/7."</div></div>
+        <div class="tell"><div class="no"><span class="lab">Never</span>Quoting simulated gains as field results.</div><div class="yes"><span class="lab">Instead</span>"In co-simulation on real detected demand — field validation is the pilot's job, and shadow mode is how we earn it."</div></div>
+        <div class="tell"><div class="no"><span class="lab">Never</span>"We reduce accidents."</div><div class="yes"><span class="lab">Instead</span>"We don't claim safety benefits we haven't measured. Delay and throughput we can show; crashes need years of data."</div></div>
+        <div class="tell"><div class="no"><span class="lab">Never</span>Forgetting pedestrians exist.</div><div class="yes"><span class="lab">Instead</span>"Pedestrian phases and clearance are hard constraints on minimum green — the controller can never trade them away."</div></div>
+        <div class="tell"><div class="no"><span class="lab">Never</span>"We'll just use reinforcement learning."</div><div class="yes"><span class="lab">Instead</span>"We run an explainable queue-pressure policy under hard timing constraints. Learned policies come after we have field data, if ever."</div></div>
+        <div class="tell"><div class="no"><span class="lab">Never</span>Not knowing what a conflict monitor is.</div><div class="yes"><span class="lab">Instead</span>"Our software requests; the conflict monitor — or our own hardware watchdog — enforces. Fault means flash."</div></div>
+        <div class="tell"><div class="no"><span class="lab">Never</span>Calling the fixed timer "the old system" in Nigeria.</div><div class="yes"><span class="lab">Instead</span>"Our real baseline at most target junctions is a dark signal or a police officer. Fixed-time is the <em>generous</em> comparison."</div></div>
+        <div class="tell"><div class="no"><span class="lab">Never</span>Mixing US and UK phase/stage vocabulary in London.</div><div class="yes"><span class="lab">Instead</span>Say "stage" for the group of movements and "junction" in the UK; switch back to "phase" and "intersection" with Americans.</div></div>
+        <div class="tell"><div class="no"><span class="lab">Never</span>"Our camera replaces the controller."</div><div class="yes"><span class="lab">Instead</span>"Our unit provides detection and local adaptive logic. Where a controller exists we talk NTCIP; where none exists we are the controller — with a certified fail-safe layer."</div></div>
+      </div>
+    </section>
+
+    <section class="appendix" id="objections">
+      <h2>Objection bank</h2>
+      <p class="lead">The questions you will get, with the shape of a good answer. Drill Days 23–24 from here; expand it every time a new question lands.</p>
+      <p class="eyebrow" style="margin:0 0 10px">From engineers</p>
+      <div class="qa">
+        <details><summary>Does it work at night and in the rain?</summary><p>Elevated views with street lighting work today; low light and rain are known weak points of every video-detection product. Our plan: VisDrone-style fine-tuning, a thermal or radar assist where budgets allow, and honest confidence gating — when detection confidence drops, the controller falls back to a safe pretimed plan rather than guessing.</p></details>
+        <details><summary>What about occlusion — a bus hiding the queue?</summary><p>We count arrivals crossing an upstream line, not presence at the stop bar, so a temporarily hidden vehicle is still counted on the way in. Multi-object tracking bridges short occlusions; long ones degrade to a conservative estimate, never to a lost vehicle.</p></details>
+        <details><summary>How do you handle pedestrians?</summary><p>As hard constraints: minimum green includes WALK plus clearance wherever a crossing exists, and the controller can't shorten it. Pedestrian detection for call-on-demand is a roadmap item, not a launch claim.</p></details>
+        <details><summary>What are your change and clearance intervals?</summary><p>Set by the local standard from approach speed and crossing width — currently 3 s yellow and 1 s all-red in the demo — and fixed, not adaptive. The controller only decides how long greens last.</p></details>
+        <details><summary>What happens when the unit crashes at 2 a.m.?</summary><p>The same thing that happens when any controller faults: the conflict monitor or our hardware watchdog drops the junction to flash. Software only ever requests a state; hardware enforces safety.</p></details>
+        <details><summary>What does it do when the junction is oversaturated?</summary><p>It maximises throughput and keeps the maximum-green and starvation limits, which is all any isolated controller can do. Oversaturation is a corridor and metering problem; we say so.</p></details>
+        <details><summary>What if the camera is knocked, moved or dirty?</summary><p>Auto-calibration re-learns approaches from observed trajectories, and a calibration-health check detects drift and reverts to pretimed operation until it's confirmed. Lens cleaning is part of the maintenance plan like any detector.</p></details>
+        <details><summary>Was your fixed-time baseline even tuned?</summary><p>The demo baseline is a 30 s split. The benchmark plan compares against a Webster-optimised plan and SUMO's NEMA actuated emulation on the same replayed demand, which is the comparison we'd want a reviewer to see.</p></details>
+        <details><summary>Why a camera rather than radar or loops?</summary><p>Loops need pavement cuts and die at resurfacing; radar sees presence, not turning movements. One elevated camera gives counts, turning movements and queues for every approach, and yields the traffic data cities buy anyway. We'll add a sensor where the camera alone can't meet a site's requirement.</p></details>
+        <details><summary>How is the simulation not rigged?</summary><p>Demand is real — detected and tracked in real footage — and identical for both controllers; only the policy differs. Queue discharge is simulated because recorded vehicles can't react to our light. The next step replays the same demand through SUMO's physics and controllers we didn't write.</p></details>
+      </div>
+      <p class="eyebrow" style="margin:22px 0 10px">From investors</p>
+      <div class="qa">
+        <details><summary>How big is the market?</summary><p>Two markets: junctions with signals that cost tens of thousands per intersection to make adaptive, and the far larger number of junctions in fast-growing cities with no working control at all. Lead with the second and bring the numbers from Day 18.</p></details>
+        <details><summary>Why now?</summary><p>Edge AI hardware crossed the threshold — a Pi-class board with an AI accelerator runs detection in real time for well under a few hundred pounds — so detection and control fit in one solar-powered box with no comms dependency. That combination didn't exist five years ago.</p></details>
+        <details><summary>How are you different from Vivacity or NoTraffic?</summary><p>They sell sensors and cloud platforms to well-funded agencies with existing controllers. We sell an autonomous, offline, self-calibrating unit for junctions that have nothing, at an order of magnitude lower cost. Different customer, different constraint.</p></details>
+        <details><summary>What's the regulatory or certification path?</summary><p>Two modes: as a detector-plus-advisor peering with an existing controller over NTCIP, which needs no safety certification of our own; and as an integrated unit where the fail-safe layer is a certified conflict-monitor-style component. Shadow-mode pilots run before either.</p></details>
+        <details><summary>How do you make money before control revenue?</summary><p>Shadow mode produces turning-movement counts and performance data that cities already pay for per intersection-day. Data first, control second, with the same hardware.</p></details>
+        <details><summary>What's defensible?</summary><p>Self-calibration from trajectories, offline operation, and field data from junctions no incumbent has ever instrumented — plus the trust of the agencies that pilot first.</p></details>
+        <details><summary>What are the team's gaps?</summary><p>Name them: a traffic engineer adviser, an embedded hardware lead, and a public-sector sales partner in-country. Investors fund founders who know what they're missing.</p></details>
+        <details><summary>How long to hardware?</summary><p>Edge v0 demonstrator in weeks on off-the-shelf parts; a field-hardened shadow-mode unit in a quarter; control-capable unit with certified fail-safe in the following two to three quarters. Milestones, not vibes.</p></details>
+      </div>
+    </section>
+
+    <section class="appendix" id="resources">
+      <h2>Sources</h2>
+      <p class="lead">Free primary sources first. Skim on the assigned day; return for depth.</p>
+      <ul class="resources">
+        <li><b>Signal Timing Manual, 2nd ed.</b> NCHRP Report 812 (TRB, 2015). Free PDF. The practitioner's bible — phasing, intervals, actuated control, coordination.</li>
+        <li><b>FHWA Signalized Intersections: Informational Guide</b> (2nd ed., 2013). Free. Best first read on anatomy and operations.</li>
+        <li><b>FHWA Traffic Detector Handbook</b> (3rd ed.). Free. Every detection technology and its failure modes.</li>
+        <li><b>MUTCD Part 4</b> at mutcd.fhwa.dot.gov. Free. Signal warrants and terminology.</li>
+        <li><b>UDOT ATSPM</b> at udottraffic.utah.gov/atspm, plus FHWA Every Day Counts ATSPM materials. Live dashboards and measure definitions.</li>
+        <li><b>ITS JPO knowledge resources</b> at itskrs.its.dot.gov. Real deployment costs and benefits, searchable.</li>
+        <li><b>NTCIP 1202 v03A</b> at ntcip.org. Free spec PDF. The controller interface.</li>
+        <li><b>TRL: SCOOT and MOVA</b> product pages; <b>TfL</b> pages on SCOOT/UTC; <b>UTMC</b> framework overview; <b>TOPAS</b> registered products.</li>
+        <li><b>Surtrac</b> — Smith, Barlow, Xie &amp; Rubinstein, "Smart Urban Signal Networks: Initial Application of the SURTRAC Adaptive Traffic Signal Control System", ICAPS 2013.</li>
+        <li><b>Varaiya</b> — "Max pressure control of a network of signalized intersections", Transportation Research Part C, 2013.</li>
+        <li><b>SUMO documentation</b> at sumo.dlr.de/docs — the Traffic Lights, NEMA and actuated pages describe controller logic concretely.</li>
+        <li><b>Practical Engineering</b> (YouTube) — traffic signal episodes for the visual intuition.</li>
+        <li><b>Theiatron's own docs</b> — README, <span class="mono">out/report.md</span>, <span class="mono">docs/oss-landscape.md</span>, the twin and A/B viewers. Your primary source for anchoring everything.</li>
+      </ul>
+    </section>
+
+    <footer class="colophon">Built for Omu Inetimi's investor and government conversations about Theiatron. Numbers are typical practice and cited ranges as of August 2026; verify any figure before it goes on a slide.</footer>
+  </main>
+</div>
+
+<script>
+  (function () {
+    var KEY = "signals30.done";
+    var days = Array.prototype.slice.call(document.querySelectorAll(".day"));
+    var state = {};
+    try { state = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { state = {}; }
+
+    function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+    var maps = { 1: document.getElementById("mapW1"), 2: document.getElementById("mapW2"), 3: document.getElementById("mapW3"), 4: document.getElementById("mapW4") };
+    var chips = {};
+    days.forEach(function (d) {
+      var n = parseInt(d.getAttribute("data-day"), 10);
+      var week = n <= 7 ? 1 : n <= 14 ? 2 : n <= 21 ? 3 : 4;
+      var a = document.createElement("a");
+      a.href = "#" + d.id;
+      a.textContent = n;
+      a.setAttribute("aria-label", "Day " + n);
+      maps[week].appendChild(a);
+      chips[n] = a;
+      var box = d.querySelector("input[type=checkbox]");
+      box.checked = !!state[n];
+      box.addEventListener("change", function () {
+        state[n] = box.checked;
+        if (!box.checked) delete state[n];
+        save();
+        render();
+      });
+    });
+
+    function render() {
+      var count = 0;
+      days.forEach(function (d) {
+        var n = parseInt(d.getAttribute("data-day"), 10);
+        var on = !!state[n];
+        if (on) count++;
+        d.classList.toggle("is-done", on);
+        chips[n].classList.toggle("done", on);
+      });
+      document.getElementById("doneCount").textContent = count;
+      document.getElementById("doneBar").style.width = Math.round((count / days.length) * 100) + "%";
+    }
+    render();
+  })();
+</script>

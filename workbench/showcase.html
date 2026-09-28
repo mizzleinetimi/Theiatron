@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Theiatron · Innovation demonstration</title>
+  <link rel="stylesheet" href="showcase.css" />
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="showcase.html">THEIATRON<span>TRAFFIC INTELLIGENCE</span></a>
+    <span class="edition">INNOVATION DEMONSTRATION <span>SOFTWARE PROTOTYPE</span></span>
+    <span id="readiness" role="status">Checking local demo…</span>
+  </header>
+  <main>
+    <nav aria-label="Demonstration chapters">
+      <button data-chapter="0" disabled><span>01</span>The problem</button>
+      <button data-chapter="1" disabled><span>02</span>See traffic</button>
+      <button data-chapter="2" disabled><span>03</span>Inspect in 3D</button>
+      <button data-chapter="3" disabled><span>04</span>Test decisions</button>
+      <button data-chapter="4" disabled><span>05</span>Evidence & next step</button>
+    </nav>
+    <div id="error" role="alert" hidden></div>
+    <section id="opening" class="opening">
+      <div class="opening-copy">
+        <p class="eyebrow">A CLEARER VIEW. A BETTER SIGNAL DECISION.</p>
+        <h1>Traffic changes.<br />Signals should<br /><em>respond.</em></h1>
+        <p class="lead">Theiatron turns camera footage into traffic observations, then tests adaptive signal decisions in software.</p>
+        <div class="process"><span>Observe</span><i>→</i><span>Understand</span><i>→</i><span>Evaluate</span></div>
+        <p class="honesty">Working local prototype. Field benefit and roadside hardware performance are not yet validated.</p>
+      </div>
+      <figure class="source-cover">
+        <img id="cover" alt="The real junction footage used in this demonstration" />
+        <figcaption><span>REAL FOOTAGE</span><strong id="footageName">Checking source…</strong><p>One prepared example • no sample substitution</p></figcaption>
+      </figure>
+    </section>
+    <section id="application" hidden>
+      <div class="stage-heading"><div><p class="eyebrow" id="stageKind"></p><h2 id="stageTitle"></h2></div><span id="stageBoundary" class="boundary"></span></div>
+      <p id="stageHint" class="stage-hint"></p>
+      <iframe id="demoFrame" title="Working Theiatron application" allow="fullscreen" hidden></iframe>
+    </section>
+    <section id="evidence" hidden>
+      <div class="stage-heading"><div><p class="eyebrow">EVIDENCE, NOT A GUARANTEED SAVING</p><h2>A testable result. A clear next step.</h2></div><span class="boundary">SIMULATION ≠ FIELD PROOF</span></div>
+      <div class="evidence-types">
+        <article><span>OBSERVED</span><h3>Camera evidence</h3><p>Video frames, detector boxes and tracker IDs. Detection and counting accuracy still need independent checking.</p></article>
+        <article><span>ESTIMATED</span><h3>Junction model</h3><p>Road perspective and vehicle positions, with assumed scale, lanes and turns. Not a surveyed digital twin.</p></article>
+        <article><span>COMPUTED</span><h3>Signal experiment</h3><p>Stock SUMO: two independent worlds with identical generated demand, routes and seed. Not measured field savings.</p></article>
+      </div>
+      <article class="result-card">
+        <div><p class="eyebrow">SELECTED, REPRODUCIBLE EXPERIMENT</p><h3 id="resultHeadline">Checking the experiment…</h3><p id="resultBasis"></p></div>
+        <div class="result-values"><div><strong id="baselineDelay">—</strong><span id="baselineName">Baseline mean delay</span></div><div><strong id="candidateDelay">—</strong><span>Theiatron mean delay</span></div></div>
+        <p id="longWait" class="tradeoff"></p>
+        <p class="small">Delay here means stopped waiting plus waiting to enter the simulation, including unfinished vehicles. Results vary across scenarios; an average improvement does not establish fairer waits for everyone.</p>
+        <div class="evidence-links"><a id="bundle" target="_blank" rel="noopener">Download evidence bundle ↗</a><a id="report" target="_blank" rel="noopener">Inspect full report ↗</a><span id="runIdentity"></span></div>
+      </article>
+      <div class="next-step"><div><p class="eyebrow">WHAT SUPPORT UNLOCKS</p><h2>A supervised, observation-only pilot.</h2></div><p>Validate with traffic engineers and labelled footage. Test alongside existing operations without controlling signals. Then benchmark affordable edge hardware.</p></div>
+    </section>
+    <div class="navigation"><button id="previous" disabled>← Previous</button><span id="cue">Suggested recording: about 3 minutes</span><button id="next" class="primary" disabled>Show the working prototype →</button></div>
+    <details id="director"><summary>Presenter notes — close before recording</summary><p id="operatorAction"></p><blockquote id="spoken"></blockquote><p>Changing chapters stops fresh detection on this demo source before unloading it. Finish a comparison before moving to evidence. Recording is controlled separately in screenmucord.</p></details>
+  </main>
+  <footer><span>LOCAL R&D PROTOTYPE</span><span>Recorded footage · Estimated geometry · No public-signal control</span><a href="/workbench/" target="_blank" rel="noopener">Engineering workbench ↗</a></footer>
+  <script src="demo-math.js"></script><script src="showcase-math.js"></script><script src="showcase.js"></script>
+</body>
+</html>

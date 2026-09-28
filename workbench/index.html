@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Theiatron · Traffic intelligence workbench</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/workbench/"
+        >THEIATRON<span>Traffic intelligence / R&D workbench</span></a
+      >
+      <div id="connection" class="badge">Connecting to local service</div>
+      <a class="button primary" id="presentDemo" href="/workbench/demo.html">Investor demo →</a>
+    </header>
+    <main>
+      <div class="heading">
+        <div>
+          <p class="eyebrow">FROM OBSERVATION TO INTERVENTION</p>
+          <h1>See the traffic. Test the decision.</h1>
+        </div>
+        <label class="history"
+          >Saved runs<select id="history">
+            <option value="">Choose a run</option>
+          </select></label
+        >
+      </div>
+      <nav aria-label="Workbench views">
+        <button data-tab="watch">
+          01 <b>Watch</b><span>Real footage & detection</span></button
+        ><button data-tab="compare" class="selected">
+          02 <b>Compare</b><span>Two independent SUMO worlds</span></button
+        ><button data-tab="evidence">
+          03 <b>Evidence</b><span>Inputs, limits & reproducibility</span>
+        </button>
+      </nav>
+      <div id="error" role="alert" hidden></div>
+      <section id="watch" hidden>
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">PERCEPTION</p>
+            <h2>Your footage, analysed here.</h2>
+          </div>
+          <label class="button primary"
+            >Select footage<input
+              type="file"
+              id="videoFile"
+              accept="video/*"
+              hidden
+          /></label>
+        </div>
+        <div class="notice">
+          File analysed now — not a live camera feed. New footage produces
+          automatic candidate geometry that still needs human review. It is
+          <strong
+            >not automatically converted into a validated road model.</strong
+          >
+        </div>
+        <div class="watch-grid">
+          <div class="media">
+            <img
+              id="preview"
+              alt="Current vehicle detections and tracked paths"
+              hidden
+            /><video id="sourceVideo" controls muted playsinline hidden></video>
+            <div id="watchEmpty" class="empty">
+              <span class="cross">＋</span>
+              <h3>Bring a new view of the junction</h3>
+              <p>
+                Select a static, elevated traffic video.<br />Fresh detection
+                frames appear as the worker processes it.
+              </p>
+            </div>
+          </div>
+          <aside>
+            <p class="eyebrow">OBSERVATION STATUS</p>
+            <h3 id="watchState">No footage selected</h3>
+            <p id="watchClock">Source clock and frame age will appear here.</p>
+            <div id="counts"></div>
+            <p class="small">
+              The detection overlay’s signal colours are the exploratory
+              controller’s simulated state, not a measurement of real traffic
+              lights.
+            </p>
+            <a id="recordedReplay" class="button primary" hidden>Open recorded 3D studio</a>
+            <a id="legacy" class="button secondary" hidden>Legacy point-queue illustration</a>
+            <button id="createProfile" class="primary" hidden>
+              Create footage-linked SUMO draft
+            </button>
+            <button id="editCounting" class="secondary" hidden>
+              Edit count lines / recount local clip
+            </button>
+          </aside>
+        </div>
+        <section
+          id="countingEditor"
+          hidden
+          aria-label="Camera count-line editor"
+        >
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">CAMERA COMMISSIONING</p>
+              <h2>Correct the counting geometry.</h2>
+            </div>
+            <button id="closeCounting" class="secondary">Close editor</button>
+          </div>
+          <p id="countingSource" class="small"></p>
+          <div class="notice">
+            This reruns <strong>fresh detection</strong> on the retained local
+            file, starting from its beginning, without the automatic calibration
+            pass or another upload. Your existing analysis and SUMO runs stay
+            unchanged. Edited lines are candidates, not validated counts.
+          </div>
+          <div class="profile-fields">
+            <label>Detector<select id="countingArm"></select></label
+            ><label
+              >Point to place<select id="countingPoint">
+                <option value="0">Line start</option>
+                <option value="1">Line end</option>
+                <option value="2">Approach-side marker</option>
+              </select></label
+            ><button id="resetCounting" class="secondary">
+              Reset to source geometry
+            </button>
+          </div>
+          <canvas
+            id="countingCanvas"
+            width="1280"
+            height="720"
+            aria-label="Click to place a count-line endpoint or approach-side marker"
+          ></canvas>
+          <p class="small">
+            Select a detector and point, then click the image, or use the
+            coordinates below. Place a line across the incoming lane and the
+            marker on the side vehicles arrive FROM. Coordinates use a stretched
+            1280×720 frame. Existing ROI polygons (dashed) are retained. NS/EW
+            are candidate point-queue groupings, not measured signal stages.
+          </p>
+          <div class="table-scroll">
+            <table id="countingFields">
+              <thead>
+                <tr>
+                  <th>Detector</th>
+                  <th>Candidate group</th>
+                  <th>Start X</th>
+                  <th>Start Y</th>
+                  <th>End X</th>
+                  <th>End Y</th>
+                  <th>Side X</th>
+                  <th>Side Y</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p id="countingStatus" role="status"></p>
+          <div class="profile-actions">
+            <label class="ack"
+              ><input type="checkbox" id="countingAcknowledged" />These edits
+              are unvalidated candidates; recounting is not ground truth or
+              proof of traffic savings.</label
+            ><button id="startRecount" class="primary">
+              Rerun detection on local footage
+            </button>
+          </div>
+        </section>
+        <section
+          id="profileEditor"
+          hidden
+          aria-label="Footage-linked network editor"
+        >
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">COMMISSIONING / DRAFT HYPOTHESIS</p>
+              <h2>Review the network before computing.</h2>
+            </div>
+            <span class="badge">UNREVIEWED — NO BENEFIT CLAIM</span>
+          </div>
+          <p id="profileSource" class="small"></p>
+          <a id="profileReplay" class="button primary" hidden>Open recorded 3D studio</a>
+          <div class="notice">
+            Count lines and arrival timestamps below come from the saved
+            analysis. The network sketch is
+            <strong>not a camera-to-metres reconstruction</strong>. Its road
+            names are detector labels, not compass bearings. Saving does not
+            mean this site has been reviewed.
+          </div>
+          <div class="profile-previews">
+            <div>
+              <h3>Camera count lines · read-only evidence</h3>
+              <canvas
+                id="profileCamera"
+                width="1280"
+                height="720"
+                aria-label="Camera image with recorded count lines"
+              ></canvas>
+            </div>
+            <div>
+              <h3>Assumed network · drag endpoints to edit</h3>
+              <canvas
+                id="profileMap"
+                width="600"
+                height="430"
+                aria-label="Editable network sketch"
+              ></canvas>
+            </div>
+          </div>
+          <div class="profile-fields">
+            <label>Model label<input id="profileLabel" maxlength="120" /></label
+            ><label
+              >Traffic side<select id="profileSide">
+                <option value="right">Right-hand (assumed)</option>
+                <option value="left">Left-hand (assumed)</option>
+              </select></label
+            ><button id="oppositeExits" class="secondary">
+              Assume most-opposite exits
+            </button>
+          </div>
+          <p class="small">
+            One assumed exit per approach in this first adapter. Unknown turns
+            are not inferred from track endpoints. Disable a candidate arm only
+            if it has no counted arrivals. To change count lines, run a new
+            perception analysis.
+          </p>
+          <div class="table-scroll">
+            <table id="profileApproaches">
+              <thead>
+                <tr>
+                  <th>Enabled / label</th>
+                  <th>Counted</th>
+                  <th>X (assumed m)</th>
+                  <th>Y (assumed m)</th>
+                  <th>Lanes</th>
+                  <th>Width m</th>
+                  <th>Speed m/s</th>
+                  <th>Assumed exit</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div id="profileTimings" class="profile-fields"></div>
+          <p class="small">
+            Exclusive stage per enabled incoming approach; fixed cyclic versus
+            queue-pressure control. Hypothetical signal operation, not the
+            present-day control at this site. Empty initial network. Short time
+            window; unfinished trips stay in the metrics.
+          </p>
+          <p id="profileStatus" role="status"></p>
+          <div class="profile-actions">
+            <button id="saveProfile" class="secondary">
+              Save draft revision</button
+            ><label class="ack"
+              ><input type="checkbox" id="profileAcknowledged" />I understand
+              these geometry, routes and signals are assumptions, not a reviewed
+              real-site model.</label
+            ><button id="runProfile" class="primary">
+              Compute with recorded arrivals
+            </button>
+          </div>
+        </section>
+      </section>
+      <section id="compare">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">CONTROL LABORATORY</p>
+            <h2>Same demand. Different decisions.</h2>
+          </div>
+          <button id="camera" class="secondary">Perspective view</button>
+        </div>
+        <div class="notice" id="comparisonNotice">
+          Synthetic four-arm junction · straight movements · ideal queue sensors
+          · empty initial network. This tests the integration,
+          <strong>not the benefit at your filmed site.</strong>
+        </div>
+        <div id="profileComparison" hidden>
+          <p id="profileComparisonSource"></p>
+          <button id="editProfile" class="secondary">
+            Inspect / edit source profile</button
+          ><button id="laboratoryMode" class="secondary">
+            New synthetic experiment
+          </button>
+        </div>
+        <form id="scenario">
+          <label
+            >Demand pattern<select name="demand">
+              <option value="tidal">Changing priority</option>
+              <option value="balanced">Balanced</option>
+              <option value="heavy">Heavy traffic</option>
+            </select></label
+          ><label
+            >Demand scale<select name="scale">
+              <option value="0.5">0.5×</option>
+              <option value="1" selected>1×</option>
+              <option value="1.5">1.5×</option>
+              <option value="2">2×</option>
+            </select></label
+          ><label
+            >Horizon<select name="duration">
+              <option>60</option>
+              <option selected>180</option>
+              <option>300</option>
+            </select></label
+          ><label
+            >Seed<input
+              name="seed"
+              type="number"
+              min="0"
+              max="1000000"
+              value="42"
+              required /></label
+          ><label
+            >Simulation pace<select name="pace">
+              <option value="1">1× wall clock</option>
+              <option value="4" selected>4× wall clock</option>
+              <option value="20">20× wall clock</option>
+            </select></label
+          ><button class="primary" id="start">Run new comparison</button>
+        </form>
+        <div class="transport">
+          <span id="simMode" class="badge">READY TO COMPUTE</span
+          ><span id="simClock">0.0 s</span
+          ><span id="simHint"
+            >Changing inputs starts a fresh simulation, not a faster
+            animation.</span
+          >
+        </div>
+        <div class="worlds">
+          <article class="world fixed">
+            <div class="world-heading">
+              <h3 id="baselineTitle">Fixed-time baseline</h3>
+              <span id="fixedDescription">20 s equal green splits</span>
+            </div>
+            <div class="scene" id="fixedScene"></div>
+            <div class="signal" id="fixedSignal">No simulation yet</div>
+            <div class="metrics" id="fixedMetrics"></div>
+          </article>
+          <article class="world adaptive">
+            <div class="world-heading">
+              <h3 id="candidateTitle">Theiatron adaptive</h3>
+              <span>Own-world queue pressure</span>
+            </div>
+            <div class="scene" id="adaptiveScene"></div>
+            <div class="signal" id="adaptiveSignal">No simulation yet</div>
+            <div class="metrics" id="adaptiveMetrics"></div>
+          </article>
+        </div>
+        <div class="result">
+          <h3 id="verdict">Run a comparison to see the result.</h3>
+          <p id="resultDetail">
+            Delay = stopped waiting + insertion delay, accrued to the common
+            horizon. Not journey-time savings.
+          </p>
+        </div>
+        <div id="replay" hidden>
+          <button id="play" class="secondary">Play saved replay</button
+          ><input
+            type="range"
+            id="seek"
+            min="0"
+            max="1"
+            step="1"
+            value="0"
+            aria-label="Replay time"
+          /><span id="replayClock"></span>
+        </div>
+        <details>
+          <summary>Per-approach results & vehicle accounting</summary>
+          <div id="fairness"></div>
+        </details>
+      </section>
+      <section id="evidence" hidden>
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">THE EVIDENCE REGISTER</p>
+            <h2>What this run can — and cannot — tell you.</h2>
+          </div>
+          <a class="button secondary" id="download" hidden download
+            >Download report</a
+          >
+        </div>
+        <div id="evidenceEmpty" class="empty">
+          Select or complete a run to inspect its evidence.
+        </div>
+        <div id="evidenceBody" hidden>
+          <div class="evidence-grid">
+            <article>
+              <h3>Provenance</h3>
+              <dl id="provenance"></dl>
+            </article>
+            <article>
+              <h3>Assumptions & limits</h3>
+              <ul id="assumptions"></ul>
+            </article>
+          </div>
+          <h3>Reproducibility files</h3>
+          <p class="small">
+            Checksums establish artifact consistency, not empirical accuracy.
+            Keep the whole run directory to verify or reproduce it.
+          </p>
+          <div id="files"></div>
+          <details>
+            <summary>Full machine-readable report</summary>
+            <pre id="report"></pre>
+          </details>
+        </div>
+      </section>
+      <footer>
+        <div>
+          <span id="jobStatus">Local processing · no roadside actuation</span
+          ><progress id="progress" max="100" value="0" hidden></progress>
+        </div>
+        <button id="cancel" class="secondary" hidden>Cancel active run</button>
+      </footer>
+      <details class="logs">
+        <summary>Worker log</summary>
+        <pre id="log">No active worker.</pre>
+      </details>
+    </main>
+    <script src="/viz/vendor/three.min.js"></script>
+    <script src="view.js"></script>
+    <script src="app.js"></script>
+    <script src="profiles.js"></script>
+    <script src="counting.js"></script>
+  </body>
+</html>

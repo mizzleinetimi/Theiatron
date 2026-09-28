@@ -52,7 +52,7 @@
 <div id="topbar">
   <div id="topleft">
     <h1>THEIATRON &mdash; SAME TRAFFIC, TWO WORLDS</h1>
-    <div class="tag">Every numbered car in the footage (N7, E3...) appears with the same tag in both simulations below.</div>
+    <div class="tag">Exploratory point-queue model &middot; illustrative 3D &middot; not measured travel-time savings.</div>
     <div id="cards">
       <div class="scorecard" id="scoreL">
         <div class="name">THEIATRON (what-if)</div>
@@ -87,7 +87,7 @@
     <option value="4">4&times;</option>
     <option value="8">8&times;</option>
   </select>
-  <input type="range" id="seek" min="0" max="180" step="0.1" value="0">
+  <input type="range" id="seek" min="0" max="180" step="any" value="0">
   <span id="clock">0:00</span>
   <span style="margin-left:14px">
     <button data-cam="high" title="three-quarter view">&#9968; High</button>
@@ -101,15 +101,8 @@
 <script src="vendor/OrbitControls.js"></script>
 <script src="vendor/GLTFLoader.js"></script>
 <script src="vendor/cars.js"></script>
-<script>
-  const runParam = new URLSearchParams(location.search).get("run") || "";
-  const runOK = /^out\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(runParam);
-  window.THEIATRON_FOOTAGE_SRC = runOK ? `../${runParam}/footage.mp4` : "footage.mp4";
-  window.THEIATRON_PLATE_SRC = runOK ? `../${runParam}/plate.jpg` : "plate.jpg";
-  document.getElementById("twinLink").href = runOK
-    ? `twin.html?run=${encodeURIComponent(runParam)}` : "twin.html";
-  document.write(`<script src="${runOK ? `../${runParam}/timeline.js` : "timeline.js?v=twin2"}"><\/script>`);
-</script>
-<script src="app.js?v=twin6"></script>
+<script src="comparison.js?v=1"></script>
+<script src="load-run.js?v=1"></script>
+<script>loadTheiatronRun("app.js?v=evidence1", "twinLink", "twin.html");</script>
 </body>
 </html>
