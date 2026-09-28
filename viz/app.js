@@ -53,7 +53,16 @@ const pathCache = new Map();
 function getPath(entry, exit) {
   const key = entry + ">" + exit;
   if (pathCache.has(key)) return pathCache.get(key);
-  const E = LANES[entry], X = outLane(exit);
+  const E = LANES[entry];
+  if (!LANES[exit]) {
+    // An unobserved exit on a T-junction is not an invented fourth road.
+    // Keep its approach/queue visible; without a real path we hide the car
+    // after discharge. This degenerate path is only used for queue keyframes.
+    const p = { entry: E, pts: [E.P, E.P], cum: [0, 0], Lint: 0, exitDir: E.f, B: E.P };
+    pathCache.set(key, p);
+    return p;
+  }
+  const X = outLane(exit);
   const A = E.P, B = X.P;
   // control point at the junction center's projection onto the inbound ray
   const along = Math.max(2 * SC, -(E.P[0] * E.f[0] + E.P[1] * E.f[1]));
@@ -566,7 +575,10 @@ function updateScenario(S, t) {
       if (s !== null) pp = realPosAt(v.rp, s);
     } else {
       const s = posAt(v, t);
-      if (s !== null) pp = pathPos(v.path || getPath(v.a, v.exit || OPP[v.a]), s);
+      const unknownExit = !LANES[v.exit || OPP[v.a]];
+      if (s !== null && !(unknownExit && v.t1 !== null && t >= v.t1)) {
+        pp = pathPos(v.path || getPath(v.a, v.exit || OPP[v.a]), s);
+      }
     }
     if (pp === null) { rec.g.visible = false; rec.lastPos = null; }
     else {
@@ -603,6 +615,9 @@ function updateScenario(S, t) {
     }
   }
   updateTrail(S, t);
+  // Final cards use the same rounded summaries as report.json, not a second
+  // browser implementation of reporting/rounding.
+  if (t >= DUR) return { avg: S.data.avg_wait, served: S.data.served };
   return { avg: waitN ? waitSum / waitN : 0, served };
 }
 
@@ -612,6 +627,13 @@ const footVideo = document.createElement("video");
 footVideo.src = window.THEIATRON_FOOTAGE_SRC || "footage.mp4";
 footVideo.muted = true;
 footVideo.preload = "auto";
+footVideo.playsInline = true;
+footVideo.id = "sourceFootage";
+footVideo.hidden = true;
+document.body.appendChild(footVideo);
+footVideo.addEventListener("error", () => {
+  document.getElementById("footcap").textContent = "Source footage could not be decoded. The replay is not a substitute for viewing the detection evidence.";
+});
 const footCanvas = document.getElementById("footage");
 const footCtx = footCanvas.getContext("2d");
 const ARRIVALS = {};
@@ -790,23 +812,15 @@ function frame(ts) {
   drawFootage(t, playing, parseFloat(speedSel.value));
   const L = updateScenario(left, t);
   const R = updateScenario(right, t);
-  document.getElementById("waitL").textContent = L.avg.toFixed(1) + "s";
-  document.getElementById("waitR").textContent = R.avg.toFixed(1) + "s";
+  document.getElementById("waitL").textContent = L.avg.toFixed(2) + "s";
+  document.getElementById("waitR").textContent = R.avg.toFixed(2) + "s";
   document.getElementById("servedL").textContent = L.served;
   document.getElementById("servedR").textContent = R.served;
   const verdict = document.getElementById("verdictTop");
-  const enoughDemand = (TIMELINE.sample_status ||
-    ((TIMELINE.arrivals || TIMELINE.theiatron.vehicles.length) >= 10 ? "ready" : "inconclusive")) === "ready";
-  if (!enoughDemand && t > 10) {
-    verdict.textContent = `INCONCLUSIVE — ${TIMELINE.arrivals || TIMELINE.theiatron.vehicles.length} ARRIVALS`;
-    verdict.style.color = "#ffb724";
-  } else if (t > 45 && R.avg > 0.5 && L.avg < R.avg) {
-    verdict.textContent = `${Math.round(100 * (R.avg - L.avg) / R.avg)}% LESS WAITING WITH THEIATRON`;
-    verdict.style.color = "#46c46e";
-  } else if (t > 45 && R.avg > 0.5 && L.avg > R.avg) {
-    verdict.textContent = `${Math.round(100 * (L.avg - R.avg) / R.avg)}% MORE WAITING ON THIS SAMPLE`;
-    verdict.style.color = "#e34a3f";
-  } else verdict.textContent = "";
+  const assessment = TheiatronComparison.atTime(TIMELINE, t, L.avg, R.avg);
+  verdict.textContent = assessment.text;
+  verdict.style.color = assessment.color;
+  verdict.title = assessment.reason;
 
   // camera: preset flight > follow > user orbit + idle auto-rotate
   if (camAnim) {

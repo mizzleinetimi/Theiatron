@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Theiatron · Continuous perception</title>
+    <link rel="stylesheet" href="demo.css" />
+    <link rel="stylesheet" href="live.css" />
+    <link rel="stylesheet" href="presentation-mode.css" />
+    <script src="presentation-mode.js"></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/workbench/demo.html"
+        >THEIATRON<span>CONTINUOUS PERCEPTION LAB</span></a
+      >
+      <div id="connection" role="status">Connecting…</div>
+      <a id="back" href="/workbench/demo.html">Back to investor demo ↗</a>
+    </header>
+    <main>
+      <p class="eyebrow">RESIDENT DETECTOR / LATEST FRAME ONLY</p>
+      <h1>See traffic as frames arrive.</h1>
+      <p class="caption">
+        This lab feeds uploaded or retained footage at camera speed through fresh
+        detection and tracking. The model stays loaded between sessions. It is
+        not a saved detection replay, a Raspberry Pi benchmark, or a live camera
+        connection.
+      </p>
+      <div id="error" role="alert" hidden></div>
+      <div class="live-upload-controls">
+        <label>New local video<input id="uploadFile" type="file" accept=".mov,.mp4,.m4v,.avi,.mkv,.webm" /></label>
+        <button id="uploadStart" class="primary" disabled>Upload & start detection</button>
+        <button id="uploadCancel" hidden>Cancel upload</button>
+        <progress id="uploadProgress" max="100" value="0" hidden></progress>
+        <p id="uploadStatus" role="status">No prior analysis needed. Upload finishes first, then fresh detection starts with the settings below.</p>
+      </div>
+      <div class="experiment-controls">
+        <label
+          >Footage<select id="source">
+            <option value="">Choose retained footage</option>
+          </select></label
+        >
+        <label
+          >Run for<select id="duration">
+            <option value="30">30 seconds</option>
+            <option value="120" selected>2 minutes</option>
+            <option value="600">10 minutes</option>
+            <option value="3600">1 hour soak</option>
+          </select></label
+        >
+        <label
+          >Sample cadence<select id="fps">
+            <option value="5">5 FPS</option>
+            <option value="10" selected>10 FPS</option>
+            <option value="15">15 FPS</option>
+            <option value="30">30 FPS</option>
+          </select></label
+        >
+        <label class="loop"
+          ><input type="checkbox" id="loop" />Loop source for soak
+          testing</label
+        >
+        <button id="start" class="primary" disabled>
+          Start fresh detection</button
+        ><button id="stop" disabled>Stop session</button>
+        <button id="prepareRoad" hidden>Prepare road & saved 3D</button>
+        <a id="savedReplay" hidden>Review road / saved 3D</a>
+      </div>
+      <p id="status" role="status">
+        Choose a clip. The first start loads and warms the model; later starts
+        reuse it.
+      </p>
+      <p class="caption">Detection-only uploads have no road model yet. “Prepare road & saved 3D” captures observations and estimates geometry independently of count-line calibration. This is offline preparation, not instant or surveyed mapping.</p>
+      <section id="roadPreparation" hidden aria-live="polite">
+        <h2>Preparing recorded 3D</h2>
+        <p id="roadStatus"></p>
+        <progress id="roadProgress" max="100" value="0"></progress>
+        <button id="roadCancel">Cancel preparation</button>
+        <p>Fresh detections → camera registration → estimated road and vehicle replay. No arrival counts or simulation results are produced.</p>
+        <figure id="roadPreview" hidden>
+          <img id="roadPreviewImage" alt="Latest saved detection preview from offline reconstruction preparation" />
+          <figcaption>Offline preparation preview · last processed frame, not a live feed. The image holds while camera and road geometry are estimated.</figcaption>
+        </figure>
+      </section>
+      <div class="observe-grid live-layout">
+        <div class="live-views">
+        <div class="video-wrap">
+          <img
+            id="preview"
+            alt="Freshly detected vehicles from the paced source"
+            hidden
+          />
+          <p id="placeholder">
+            Your source appears here when its first observation is ready.
+          </p>
+        </div>
+        <section class="live-scene-panel" aria-label="Fresh detection 3D projection">
+          <div class="live-scene-tools">
+            <label class="loop"><input type="checkbox" id="show3D" checked />3D preview</label>
+            <button data-live-view="junction">Orbit</button>
+            <button data-live-view="top">Top</button>
+            <button data-live-view="fit">Fit</button>
+            <button id="retry3D" title="Reload the source-specific geometry">Reload road</button>
+          </div>
+          <div id="liveScene"></div>
+          <div class="scene-caption">
+            <span class="badge">ESTIMATED GEOMETRY · FRESH VEHICLE POSITIONS</span>
+            <p id="geometryStatus" role="status">Uses this clip’s saved automatic or explicitly saved guided perspective after camera refinement. Physical scale remains estimated.</p>
+            <p id="sceneStatus" role="status">Start detection to load this source’s estimated road.</p>
+            <p>Drag to orbit · right-drag to pan · scroll to zoom</p>
+          </div>
+      </section>
+        </div>
+        <aside>
+          <span class="badge" id="mode">NO SESSION</span>
+          <h3 id="sourceName">No source selected</h3>
+          <p id="freshness">No observations yet.</p>
+          <div class="metrics" id="metrics"></div>
+          <p id="startup"></p>
+          <p class="caption" id="basis">
+            For paced files, observation age runs from scheduled frame
+            presentation to inference completion. Camera transport latency is
+            not measured.
+          </p>
+          <a id="report" hidden>Download session report</a>
+        </aside>
+      </div>
+      <details>
+        <summary>What these measurements mean</summary>
+        <ul>
+          <li>
+            Boxes and IDs are fresh model output. The displayed object count is
+            visible detections, not unique vehicles or calibrated traffic flow.
+          </li>
+          <li>
+            The input buffer holds one pending frame. Slow inference overwrites
+            old pending frames; frames already over 300 ms old are rejected
+            before inference. Drops and deadline misses remain visible.
+          </li>
+          <li>
+            p50/p95 cover this session, using 1 ms histogram upper bounds.
+            Processing FPS covers the last 100 observations. Preview delivery is
+            separate from inference latency.
+          </li>
+          <li>
+            After a loop or a source-time gap over 0.5 seconds, the tracker
+            starts a new identity namespace. No trajectory is invented across
+            that gap.
+          </li>
+          <li>
+            The 3D view projects fresh detector anchors onto this clip’s saved
+            road and camera estimates. It does not read saved vehicle tracks.
+            Camera transforms must match the exact source bytes and native frame;
+            missing or rejected mappings hide cars. A different sample cadence
+            may lack matching camera frames. Try the original analysis cadence
+            (10 FPS for IMG_0635).
+          </li>
+          <li>
+            Road geometry and camera-motion compensation are reused, not
+            estimated live. Vehicle sizes are nominal; colours identify tracks,
+            not paint. Heading comes from observed motion and is initially
+            unknown. Causal position filtering and up to 120 ms visual easing
+            reduce jitter; they add display lag and are not accuracy validation.
+            Missing detections, jumps, stale observations and stopped sessions
+            hide cars without extrapolation. The view does not feed SUMO.
+          </li>
+          <li>
+            Sessions stop at the chosen time limit. Stopping keeps the model
+            warm; restarting the service ends its worker. A separate explicit
+            RTSP CLI adapter exists, but has not been field-tested.
+          </li>
+        </ul>
+      </details>
+    </main>
+    <footer>
+      Local perception experiment · no roadside actuation · no calibrated speed,
+      delay-savings or hardware claim
+    </footer>
+    <script src="live-math.js"></script>
+    <script src="live-upload.js"></script>
+    <script src="/viz/vendor/three.min.js"></script>
+    <script src="/viz/vendor/OrbitControls.js"></script>
+    <script src="replay-math.js"></script>
+    <script src="traffic-scene.js"></script>
+    <script src="live-scene-math.js"></script>
+    <script src="live-scene.js"></script>
+    <script src="live.js"></script>
+  </body>
+</html>

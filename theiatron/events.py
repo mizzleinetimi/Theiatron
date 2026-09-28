@@ -14,9 +14,10 @@ from pathlib import Path
 def save_events(events: list[tuple[float, str]], path: str | Path, meta: dict | None = None) -> None:
     payload = {
         "meta": meta or {},
-        "events": [{"t": round(t, 3), "approach": name} for t, name in sorted(events)],
+        # JSON floats round-trip; rounding here moves arrivals across ticks.
+        "events": [{"t": t, "approach": name} for t, name in sorted(events)],
     }
-    Path(path).write_text(json.dumps(payload, indent=1))
+    Path(path).write_text(json.dumps(payload, indent=1, allow_nan=False))
 
 
 def load_events(path: str | Path) -> tuple[list[tuple[float, str]], dict]:

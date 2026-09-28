@@ -27,13 +27,18 @@ import argparse
 import sys
 import time
 from pathlib import Path
+from theiatron.preview import PreviewPublisher, parent_watchdog
+from theiatron.provenance import vision_provenance
 
-from theiatron.config import AppConfig, load_config, save_config
+from theiatron.config import AppConfig, config_from_dict, load_config, save_config
+from theiatron.artifacts import (
+    build_artifact, load_artifact, replay_artifact, save_artifact, validate_inputs,
+)
 from theiatron.controller import AdaptiveController, FixedController, SignalState
 from theiatron.engine import IntersectionEngine
 from theiatron.events import load_events, save_events
 from theiatron.metrics import (
-    MIN_COMPARISON_ARRIVALS,
+    assess_comparison,
     comparison_report,
     summarize,
     total_censored_wait,
@@ -84,11 +89,16 @@ def build_engines(cfg: AppConfig):
     return adaptive, fixed
 
 
-def finish(cfg, adaptive, fixed, end_time, out_dir):
-    a_sum = summarize(adaptive, end_time)
-    f_sum = summarize(fixed, end_time)
-    md, data = comparison_report(a_sum, f_sum)
+def finish(cfg, adaptive, fixed, end_time, out_dir, meta=None):
+    meta = {**(meta or {}), "duration": end_time, "simulation_artifact": "simulation.json"}
+    artifact = build_artifact(cfg, adaptive, fixed, end_time, meta)
+    data = artifact["report"]
+    md, _ = comparison_report(data["adaptive"], data["fixed"])
+    data = {**data, "artifact_id": artifact["artifact_id"], "backend": artifact["backend"]}
     md_path, json_path = write_report(md, data, out_dir)
+    save_artifact(artifact, Path(out_dir) / "simulation.json")
+    save_events([tuple(e) for step in adaptive.steps for e in step["arrivals"]],
+                Path(out_dir) / "events.json", meta=meta)
     print(md)
     print(f"report: {md_path}  |  {json_path}")
     return data
@@ -96,20 +106,50 @@ def finish(cfg, adaptive, fixed, end_time, out_dir):
 
 def run_replay(args):
     events, meta = load_events(args.replay)
-    cfg_path = args.config or meta.get("config") or DEFAULT_CONFIG
-    if not Path(cfg_path).exists():
-        sys.exit(f"replay config does not exist: {cfg_path}")
-    cfg = load_config(cfg_path)
+    artifact_path = Path(args.replay).with_name("simulation.json")
+    artifact = load_artifact(artifact_path) if artifact_path.exists() else None
+    if meta.get("simulation_artifact") and artifact is None:
+        sys.exit("canonical simulation.json is missing; restore the complete run directory")
+
+    def publish(cfg, adaptive, fixed, duration, source_meta):
+        out = Path(args.out)
+        # A shortened/new experiment must never truncate its source events or
+        # replace an existing run's evidence (including the default out/ run).
+        if any((out / name).exists() for name in ("events.json", "simulation.json", "report.json")):
+            from datetime import datetime
+            out = _new_run_dir(out, datetime.now().strftime("replay-%Y%m%d-%H%M%S-%f"))
+            print(f"preserving existing evidence; replay output: {out}")
+        finish(cfg, adaptive, fixed, duration, out, source_meta)
+
+    # No overrides means exact reproduction, including the real frame cadence
+    # and config snapshot (even after the run directory has been moved).
+    if artifact is not None and args.config is None and args.duration is None:
+        cfg = config_from_dict(artifact["config"])
+        duration = artifact["duration"]
+        validate_inputs(artifact, events, cfg, duration)
+        adaptive, fixed = build_engines(cfg)
+        replay_artifact(artifact, adaptive, fixed)
+        print(f"verified exact replay of {artifact['artifact_id']}")
+        publish(cfg, adaptive, fixed, duration, artifact["source_meta"])
+        return
+    if artifact is not None and args.config is None:
+        cfg = config_from_dict(artifact["config"])
+    else:
+        cfg_path = args.config or meta.get("config") or DEFAULT_CONFIG
+        if not Path(cfg_path).exists():
+            sys.exit(f"replay config does not exist: {cfg_path}")
+        cfg = load_config(cfg_path)
     duration = (
         args.duration
         if args.duration is not None
-        else float(meta.get("duration") or (events[-1][0] + 30.0 if events else 60.0))
+        else float(meta.get("duration", events[-1][0] + 30.0 if events else 60.0))
     )
     adaptive, fixed = build_engines(cfg)
     adaptive.run_replay(events, duration)
     fixed.run_replay(events, duration)
-    print(f"replayed {len(events)} arrivals over {duration:.0f}s (meta: {meta})")
-    finish(cfg, adaptive, fixed, duration, args.out)
+    print(f"new nominal-cadence experiment: {len(events)} input arrivals over {duration:.3f}s")
+    publish(cfg, adaptive, fixed, duration,
+            {**meta, "replay_mode": "nominal-cadence", "nominal_dt": 0.1})
 
 
 def run_calibrate(args):
@@ -614,8 +654,25 @@ def _harvest_track_artifacts(extractors, recorder) -> dict:
     return {"counted": counted, "extras": extras}
 
 
+def _evaluation_window(scope, total_duration, observed, requested):
+    """Never turn an explicitly unseen evaluation into a full-clip rerun."""
+    if scope == "full":
+        return True, min(requested, total_duration) if total_duration else requested
+    if scope != "unseen":
+        raise ValueError(f"unknown evaluation scope: {scope}")
+    if not total_duration:
+        raise ValueError("unseen evaluation requires a known video duration")
+    remaining = max(0.0, total_duration - observed)
+    if remaining < min(20.0, requested * 0.25):
+        raise ValueError("Not enough unseen footage after calibration. Use a longer clip or "
+                         "a shorter --observe window; choose --evaluation-scope full explicitly "
+                         "if you want an exploratory full-clip comparison.")
+    return False, min(requested, remaining)
+
+
 def run_live_demo(args):
-    """Learn a new video, then run fresh perception + A/B control live."""
+    """Learn a new video, then count retained or fresh observations explicitly."""
+    pipeline_start = time.perf_counter()
     import json
     from collections import defaultdict
 
@@ -667,6 +724,7 @@ def run_live_demo(args):
     except (FileExistsError, ValueError) as e:
         sys.exit(str(e))
     source_hash = _sha256(source)
+    runtime_provenance = vision_provenance(cfg.vision.model)
     observe_target = min(args.observe, total_duration) if total_duration else args.observe
     eval_target = (
         args.duration
@@ -678,15 +736,21 @@ def run_live_demo(args):
           f"{total_duration:.1f}s)")
     print(f"run artifacts: {run_dir}")
     print(f"stage 1/3: observing up to {observe_target:.0f}s for automatic calibration")
+    preview = PreviewPublisher(run_dir)
 
     feed = VideoFeed(str(source), cfg.vision.process_fps, loop=False)
     detector = VehicleDetector(cfg.vision)
+    reuse = None
+    if args.evaluation_scope == 'full' and getattr(args, 'perception_pass', 'reuse') == 'reuse':
+        from theiatron.perception_reuse import ObservationReuse
+        reuse = ObservationReuse(detector, run_dir / 'perception-observations.jsonl')
     paths = defaultdict(list)
     plate_samples = []
     plate_interval = max(observe_target / 17.0, feed.dt)
     next_plate_sample = 0.0
     first_frame = last_frame = None
     obs_time = 0.0
+    observation_ticks = 0
     setup_aborted = False
     try:
         while obs_time < observe_target:
@@ -701,13 +765,16 @@ def run_live_demo(args):
             if obs_time + 1e-9 >= next_plate_sample:
                 plate_samples.append(frame.copy())
                 next_plate_sample += plate_interval
-            detections = detector.track(frame)
+            detections = (reuse or detector).track(frame)
+            observation_ticks += 1
             for d in detections:
                 paths[d.track_id].append((obs_time, d.x, d.y))
+            vis = _draw_calibration_observation(
+                frame, detections, paths, obs_time, observe_target
+            )
+            preview.publish(vis, obs_time, "calibrating", tracks=len(paths), detections=len(detections),
+                            source_name=source.name, target_s=observe_target)
             if not args.headless:
-                vis = _draw_calibration_observation(
-                    frame, detections, paths, obs_time, observe_target
-                )
                 cv2.imshow("Theiatron - learning this intersection", vis)
                 if (cv2.waitKey(1) & 0xFF) == ord("q"):
                     setup_aborted = True
@@ -781,24 +848,32 @@ def run_live_demo(args):
             cv2.destroyWindow("Theiatron - learning this intersection")
 
         remaining = max(0.0, total_duration - obs_time) if total_duration else 0.0
-        minimum_fresh = min(20.0, eval_target * 0.25)
-        rewound = args.evaluation_scope == "full" or remaining < minimum_fresh
+        try:
+            rewound, available_eval = _evaluation_window(
+                args.evaluation_scope, total_duration, obs_time, eval_target
+            )
+        except ValueError as error:
+            sys.exit(str(error))
         if rewound:
-            if args.evaluation_scope == "full":
-                print("rewinding for a fresh full-clip inference and comparison pass")
-            else:
-                print("clip has little unseen footage after calibration; rewinding for fresh inference")
+            print("rewinding to count retained observations (no repeated inference)" if reuse else
+                  "rewinding for a fresh full-clip inference and comparison pass")
             feed.release()
             feed = VideoFeed(str(source), cfg.vision.process_fps, loop=False)
             # A truly new detector matters here. Ultralytics registers tracker
             # callbacks on the model object; clearing only its predictor and
             # reusing it can retain callbacks and recycle track IDs during the
             # second pass, merging many vehicles into a handful of tracks.
-            detector = VehicleDetector(cfg.vision)
-            available_eval = total_duration or eval_target
+            if reuse:
+                reuse.rewind()
+            else:
+                detector = VehicleDetector(cfg.vision)
+            # Reconstruction coordinates must refer to a real analysed frame,
+            # not a temporal composite assembled while the camera was moving.
+            if not cv2.imwrite(str(plate_path), first_frame, [cv2.IMWRITE_JPEG_QUALITY, 90]):
+                sys.exit(f"cannot create first-frame reconstruction plate: {plate_path}")
+            plate_mode = 'first-processed-frame'
         else:
             print(f"continuing into {remaining:.1f}s of footage not used for calibration")
-            available_eval = remaining
         if available_eval and eval_target > available_eval:
             print(f"evaluation shortened from {eval_target:.1f}s to available "
                   f"{available_eval:.1f}s")
@@ -810,6 +885,8 @@ def run_live_demo(args):
             a.name: ArrivalExtractor(a, cfg.vision.min_track_age) for a in cfg.approaches
         }
         recorder = TrackRecorder()
+        from theiatron.recorded_tracks import RecordedTracks
+        dense = RecordedTracks()
         claimed = set()
         adaptive, fixed = build_engines(cfg)
         names = [a.name for a in cfg.approaches]
@@ -829,6 +906,7 @@ def run_live_demo(args):
         )
         now = 0.0
         frames_done = 0
+        evaluation_inference_ticks = 0
         all_events: list[tuple[float, str]] = []
         wall_start = time.perf_counter()
         last_annotated = None
@@ -839,7 +917,10 @@ def run_live_demo(args):
                     break
                 frame = _normalize_frame(frame)
                 now = round(now + feed.dt, 6)
-                detections = detector.track(frame)
+                detections = (reuse or detector).track(frame)
+                if not reuse:
+                    evaluation_inference_ticks += 1
+                dense.update(now, detections)
                 points = [(d.track_id, d.x, d.y) for d in detections]
                 recorder.update(now, points)
                 tick_events = []
@@ -862,6 +943,9 @@ def run_live_demo(args):
                     {name: len(adaptive.queues[name].queue) for name in names},
                 )
                 last_annotated = annotated
+                preview.publish(annotated, (0 if rewound else obs_time) + now, "analyzing", detections=len(detections),
+                                arrivals={name: sum(1 for _, a in all_events if a == name) for name in names},
+                                source_name=source.name, target_s=eval_target)
                 footage_writer.write(annotated)
                 canvas = dashboard.render(
                     [annotated],
@@ -874,10 +958,7 @@ def run_live_demo(args):
                         "fixed_waiting": f_waiting,
                         "time_saved_s": saved,
                         "fixed_label": f"FIXED {cfg.signal.fixed_split:.0f}s",
-                        "ready": (
-                            now > 30.0
-                            and a_sum["arrivals"] >= MIN_COMPARISON_ARRIVALS
-                        ),
+                        "comparison": assess_comparison(a_sum, f_sum),
                     },
                     narrate(adaptive),
                 )
@@ -895,24 +976,8 @@ def run_live_demo(args):
                     total_censored_wait(fixed, now)
                     - total_censored_wait(adaptive, now)
                 )
-                sample_ready = a_final["arrivals"] >= MIN_COMPARISON_ARRIVALS
-                if not sample_ready:
-                    result_text = (
-                        f"Inconclusive: {a_final['arrivals']} arrivals counted; "
-                        f"need {MIN_COMPARISON_ARRIVALS}"
-                    )
-                elif f_final["avg_wait_s"] > 0:
-                    reduction = 100.0 * (
-                        f_final["avg_wait_s"] - a_final["avg_wait_s"]
-                    ) / f_final["avg_wait_s"]
-                    result_text = (
-                        f"Result on this footage: {reduction:.0f}% less modeled "
-                        "average waiting"
-                        if reduction >= 0
-                        else f"Result on this footage: {-reduction:.0f}% more modeled waiting"
-                    )
-                else:
-                    result_text = "Result: no modeled queue formed in this footage segment"
+                assessment = assess_comparison(a_final, f_final)
+                result_text = "Exploratory model: " + assessment["headline"]
                 final_stats = {
                     "theia_wait": a_final["avg_wait_s"],
                     "fixed_wait": f_final["avg_wait_s"],
@@ -920,7 +985,7 @@ def run_live_demo(args):
                     "fixed_waiting": sum(len(q.queue) for q in fixed.queues.values()),
                     "time_saved_s": saved_final,
                     "fixed_label": f"FIXED {cfg.signal.fixed_split:.0f}s",
-                    "ready": sample_ready,
+                    "comparison": assessment,
                 }
                 hold_frames = max(1, round(args.result_seconds / feed.dt))
                 for _ in range(hold_frames):
@@ -948,10 +1013,16 @@ def run_live_demo(args):
         artifacts = _harvest_track_artifacts(extractors, recorder)
         tracks_path = run_dir / "tracks.json"
         tracks_path.write_text(json.dumps(artifacts))
+        (run_dir / "recorded-tracks.json").write_text(json.dumps(dense.export(extractors), allow_nan=False))
         event_name = args.record_arrivals or "events.json"
         event_path = run_dir / event_name
+        if _sha256(source) != source_hash:
+            raise RuntimeError('Source video changed during execution; rerun against an unchanged file')
+        if vision_provenance(cfg.vision.model) != runtime_provenance:
+            raise RuntimeError("Detector or source code changed during execution; rerun against a stable checkout")
         event_meta = {
             "kind": "live-video-analysis",
+            "simulation_artifact": "simulation.json",
             "config": str(session_config.resolve()),
             "duration": now,
             "model": cfg.vision.model,
@@ -959,10 +1030,22 @@ def run_live_demo(args):
             "source_sha256": source_hash,
             "calibration_observe_s": round(obs_time, 3),
             "calibration_quality": quality,
-            "evaluation_scope": "unseen" if not rewound else "full-fresh-pass",
+            "evaluation_scope": ("unseen" if not rewound else
+                                 "full-single-inference-pass" if reuse else "full-fresh-pass"),
+            "runtime_provenance": runtime_provenance,
         }
+        if reuse:
+            event_meta['perception'] = {**reuse.stats(),
+                'observations_sha256': _sha256(reuse.path),
+                'scope': 'Count lines learned from the same footage; retained detections are recounted, not held-out validation.'}
+        else:
+            event_meta['perception'] = {
+                'mode': 'two-fresh-inference-passes' if rewound else 'single-continuous-unseen-window',
+                'inference_ticks': observation_ticks + evaluation_inference_ticks,
+                'reused_ticks': 0,
+            }
         save_events(all_events, event_path, meta=event_meta)
-        report = finish(cfg, adaptive, fixed, now, run_dir)
+        report = finish(cfg, adaptive, fixed, now, run_dir, event_meta)
         timeline_path = run_dir / "timeline.js"
         timeline_ok, timeline_message = _export_3d_timeline(
             event_path, now, session_config, tracks_path, timeline_path
@@ -996,10 +1079,12 @@ def run_live_demo(args):
             "evaluation_scope": event_meta["evaluation_scope"],
             "events": len(all_events),
             "processing_ticks_per_wall_second": round(frames_done / wall_time, 2),
+            "perception": event_meta.get('perception', {'mode': 'fresh-evaluation-inference'}),
+            "pipeline_wall_s": round(time.perf_counter() - pipeline_start, 3),
             "results": {
-                "sample_status": report["sample_status"],
-                "avg_wait_reduction_pct": report["avg_wait_reduction_pct"],
-                "p95_wait_reduction_pct": report["p95_wait_reduction_pct"],
+                **assess_comparison(report["adaptive"], report["fixed"]),
+                "artifact_id": report["artifact_id"],
+                "backend": report["backend"],
             },
             "three_d": {
                 "ready": three_d_ready,
@@ -1012,13 +1097,17 @@ def run_live_demo(args):
             },
         }
         (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
-        print(f"processed {frames_done} fresh inference ticks in {wall_time:.1f}s wall "
-              f"({frames_done / wall_time:.1f} ticks/s)")
+        print(f"processed {frames_done} analysis ticks in {wall_time:.1f}s wall "
+              f"({frames_done / wall_time:.1f} ticks/s; includes reused observations when enabled)")
+        if reuse:
+            print(f"perception: {reuse.inference_ticks} unique inference ticks; {reuse.reused_ticks} ticks reused for counting")
         print(f"live run complete: {run_dir}")
         print(f"replay: python run_demo.py --replay {event_path}")
         if viewer_path and three_d_ready:
             print(f"3D viewer: {viewer_path}")
     finally:
+        if reuse:
+            reuse.close()
         feed.release()
         if not args.headless:
             cv2.destroyAllWindows()
@@ -1153,9 +1242,7 @@ def run_live(args):
                     - total_censored_wait(adaptive, now)
                 ),
                 "fixed_label": f"FIXED {cfg.signal.fixed_split:.0f}s",
-                # Early numbers are startup noise; hold the verdict back
-                # until both controllers have served a fair sample.
-                "ready": now > 60.0 and f_sum["served"] >= 15,
+                "comparison": assess_comparison(a_sum, f_sum),
             }
             canvas = dash.render(
                 tile_frames,
@@ -1184,9 +1271,10 @@ def run_live(args):
     if args.record_arrivals:
         save_events(all_events, out_dir / args.record_arrivals,
                     meta={"config": str(cfg_path), "duration": now,
-                          "model": cfg.vision.model})
+                          "model": cfg.vision.model, "simulation_artifact": "simulation.json"})
         print(f"arrivals: {out_dir / args.record_arrivals}")
-    finish(cfg, adaptive, fixed, now, out_dir)
+    finish(cfg, adaptive, fixed, now, out_dir,
+           {"config": str(cfg_path), "duration": now, "model": cfg.vision.model})
 
 
 def main():
@@ -1212,7 +1300,9 @@ def main():
     ap.add_argument("--result-seconds", type=float, default=8.0,
                     help="seconds to hold the final result card")
     ap.add_argument("--evaluation-scope", choices=("full", "unseen"), default="full",
-                    help="fresh full-clip pass (stage default) or only footage after calibration")
+                    help="full-clip counting (default) or only footage after calibration")
+    ap.add_argument("--perception-pass", choices=("reuse", "fresh"), default="reuse",
+                    help="reuse same-run inference for full-clip counting; fresh repeats inference after learning lines")
     ap.add_argument("--run-name",
                     help="live run directory name under --out (default: timestamped)")
     ap.add_argument("--record", default="annotated.mp4",
@@ -1238,4 +1328,5 @@ def main():
 
 
 if __name__ == "__main__":
+    parent_watchdog()
     main()

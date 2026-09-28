@@ -13,11 +13,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from theiatron.config import QueueConfig, load_config
+from theiatron.config import load_config
+from theiatron.artifacts import POINT_QUEUE_BACKEND, build_artifact, load_artifact, validate_inputs
 from theiatron.controller import AdaptiveController, FixedController
 from theiatron.engine import IntersectionEngine
 from theiatron.events import load_events
-from theiatron.metrics import summarize
 
 events_path = sys.argv[1] if len(sys.argv) > 1 else "out/events.json"
 duration = float(sys.argv[2]) if len(sys.argv) > 2 else 180.0
@@ -26,6 +26,26 @@ app = load_config(sys.argv[3] if len(sys.argv) > 3 else "configs/approaches.yaml
 tracks_path = Path(sys.argv[4]) if len(sys.argv) > 4 else Path(events_path).with_name("tracks.json")
 timeline_path = Path(sys.argv[5]) if len(sys.argv) > 5 else Path("viz/timeline.js")
 names = [a.name for a in app.approaches]
+
+artifact_path = Path(events_path).with_name("simulation.json")
+if artifact_path.exists():
+    simulation = load_artifact(artifact_path)
+    validate_inputs(simulation, events, app, duration)
+    if simulation["backend"] != POINT_QUEUE_BACKEND:
+        raise ValueError("this illustrative exporter does not support that simulation backend")
+    evidence_source = "canonical-simulation"
+else:
+    if _meta.get("simulation_artifact"):
+        raise ValueError("canonical simulation.json is missing; restore the complete run directory")
+    # Compatibility for historic runs only. Do not claim exact live replay:
+    # these events predate recorded ticks and may have rounded timestamps.
+    print("legacy events: recomputing with supplied config at nominal 0.1s cadence")
+    engines = [IntersectionEngine(cls(app.signal), app.signal, app.approaches, app.queue)
+               for cls in (AdaptiveController, FixedController)]
+    for engine in engines:
+        engine.run_replay(events, duration)
+    simulation = build_artifact(app, *engines, duration, _meta)
+    evidence_source = "legacy-recomputed"
 
 OPP = {"north": "south", "south": "north", "east": "west", "west": "east"}
 
@@ -58,7 +78,7 @@ def load_motions():
     """Per-car real motion: spawn lead, crossing duration, exit arm (turn)."""
     path = tracks_path
     if not path.exists():
-        print(f"no {path} - cars default to straight-through at default pace")
+        print(f"no {path} - illustrative straight-through motion only where an opposite arm exists")
         return {}
     raw = json.loads(path.read_text())
     counted = raw["counted"] if isinstance(raw, dict) else raw
@@ -67,7 +87,9 @@ def load_motions():
     aux = {}
     for m in counted:
         tail = m.get("tail", [])
-        exit_arm = OPP[m["a"]]  # default: straight through
+        opposite = OPP.get(m["a"])
+        exit_arm = opposite if opposite in names else None
+        exit_source = "assumed-straight" if exit_arm else "unknown"
         if len(tail) >= 2:
             h = _norm((tail[-1][0] - tail[0][0], tail[-1][1] - tail[0][1]))
             moved = abs(tail[-1][0] - tail[0][0]) + abs(tail[-1][1] - tail[0][1])
@@ -79,11 +101,13 @@ def load_motions():
                     key=lambda n: -(h[0] * IMG_DIR[n][0] + h[1] * IMG_DIR[n][1]),
                 )
                 exit_arm = best
+                exit_source = "inferred-heading"
         cross = m["t_end"] - m["t0"]
         cross = round(min(max(cross, 2.0), 8.0), 2) if cross > 0.5 else 4.0
         aux[(m["a"], m["n"])] = {
             "ts": min(m["ts"], m["t0"] - 0.5),
             "exit": exit_arm,
+            "exit_source": exit_source,
             "cross": cross,
             "pw": world_path(m),
             "tw": twin_path(m),
@@ -214,32 +238,10 @@ def world_path(m_rec: dict):
 MOTIONS = load_motions()
 
 
-def run_scenario(ctrl_cls):
-    eng = IntersectionEngine(ctrl_cls(app.signal), app.signal, app.approaches, QueueConfig())
-    dt = 0.1
-    lights = {n: [[0.0, eng.light_for(n)]] for n in names}
-    ev = sorted(events)
-    i = 0
-    steps = int(duration / dt)
-    for k in range(1, steps + 1):
-        now = round(k * dt, 6)
-        batch = []
-        while i < len(ev) and ev[i][0] <= now:
-            batch.append(ev[i])
-            i += 1
-        eng.tick(now, batch)
-        for n in names:
-            state = eng.light_for(n)
-            if state != lights[n][-1][1]:
-                lights[n].append([now, state])
-    vehicles = []
-    for n in names:
-        q = eng.queues[n]
-        for v in q.departed:
-            vehicles.append({"a": n, "t0": round(v.arrival, 2), "t1": round(v.depart, 2)})
-        for v in q.queue:
-            vehicles.append({"a": n, "t0": round(v.arrival, 2), "t1": None})
-    vehicles.sort(key=lambda v: v["t0"])
+def decorate_scenario(key):
+    # Copy results without recomputing physics or rounding event times.
+    scenario = json.loads(json.dumps(simulation["scenarios"][key]))
+    vehicles = scenario["vehicles"]
     # Per-approach sequential number == the tag painted in the footage (N7...).
     seq = {n: 0 for n in names}
     for v in vehicles:
@@ -247,26 +249,28 @@ def run_scenario(ctrl_cls):
         v["label"] = v["a"][0].upper() + str(seq[v["a"]])
         aux = MOTIONS.get((v["a"], seq[v["a"]]))
         v["ts"] = aux["ts"] if aux else round(v["t0"] - 6.0, 2)
-        v["exit"] = aux["exit"] if aux else OPP[v["a"]]
+        opposite = OPP.get(v["a"])
+        v["exit"] = aux["exit"] if aux else (opposite if opposite in names else None)
+        v["exit_source"] = aux["exit_source"] if aux else (
+            "assumed-straight" if v["exit"] else "unknown"
+        )
         v["cross"] = aux["cross"] if aux else 4.0
         if aux and aux.get("pw"):
             v["pw"] = aux["pw"]
         if aux and aux.get("tw"):
             v["tw"] = aux["tw"]
-    s = summarize(eng, duration)
-    return {
-        "lights": lights,
-        "vehicles": vehicles,
-        "avg_wait": s["avg_wait_s"],
-        "p95_wait": s["p95_wait_s"],
-        "served": s["served"],
-    }
+    return scenario
 
 
 timeline = {
     "duration": duration,
-    "arrivals": len(events),
-    "sample_status": "ready" if len(events) >= 10 else "inconclusive",
+    "arrivals": simulation["report"]["adaptive"]["arrivals"],
+    "sample_status": simulation["report"]["sample_status"],
+    "comparison": simulation["report"],
+    "artifact_id": simulation["artifact_id"],
+    "backend": simulation["backend"],
+    "evidence_source": evidence_source,
+    "phase_of": {a.name: a.phase for a in app.approaches},
     "source": _meta.get("source"),
     "approaches": names,
     # One shared elevated camera -> footage is a single wide view;
@@ -278,16 +282,13 @@ timeline = {
     # rendered by the digital twin so every boxed car has a 3D counterpart.
     "extras": [p for p in ({"tw": twin_path(m)} for m in EXTRA_MOTIONS)
                if p["tw"]],
-    "theiatron": run_scenario(AdaptiveController),
-    "fixed": run_scenario(FixedController),
+    "theiatron": decorate_scenario("theiatron"),
+    "fixed": decorate_scenario("fixed"),
 }
 out = timeline_path
 out.parent.mkdir(exist_ok=True)
 out.write_text("const TIMELINE = " + json.dumps(timeline) + ";\n")
-fixed_wait = timeline["fixed"]["avg_wait"]
-red = (100 * (fixed_wait - timeline["theiatron"]["avg_wait"]) / fixed_wait
-       if fixed_wait else 0.0)
-verdict = f"{red:.0f}% less waiting" if red >= 0 else f"{-red:.0f}% more waiting"
+verdict = simulation["report"]["headline"]
 print(f"wrote {out}: {len(timeline['theiatron']['vehicles'])} vehicles, "
       f"theiatron {timeline['theiatron']['avg_wait']}s vs fixed {timeline['fixed']['avg_wait']}s "
       f"({verdict})")

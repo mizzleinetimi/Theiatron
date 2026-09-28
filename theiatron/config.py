@@ -6,6 +6,7 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
 import yaml
+import math
 
 
 @dataclass
@@ -81,6 +82,16 @@ class AppConfig:
 
 def load_config(path: str | Path) -> AppConfig:
     raw = yaml.safe_load(Path(path).read_text()) or {}
+    return config_from_dict(raw)
+
+
+def config_from_dict(raw: dict) -> AppConfig:
+    """Load either YAML config data or an immutable run's config snapshot."""
+    if not isinstance(raw, dict):
+        raise ValueError("configuration must be an object")
+    unknown = set(raw) - {"signal", "queue", "vision", "approaches"}
+    if unknown:
+        raise ValueError(f"unknown configuration sections: {sorted(unknown)}")
     cfg = AppConfig()
     if "signal" in raw:
         cfg.signal = SignalConfig(**raw["signal"])
@@ -92,7 +103,46 @@ def load_config(path: str | Path) -> AppConfig:
             vis["classes"] = tuple(vis["classes"])
         cfg.vision = VisionConfig(**vis)
     cfg.approaches = [ApproachConfig(**a) for a in raw.get("approaches", [])]
+    validate_config(cfg)
     return cfg
+
+
+def validate_config(cfg: AppConfig) -> None:
+    """Reject impossible/nonfinite inputs before launching any processing."""
+    def finite(name, value, low=0, inclusive=False):
+        if type(value) not in {int, float} or not math.isfinite(value) or (value < low if inclusive else value <= low):
+            raise ValueError(f"{name} must be finite and {'at least' if inclusive else 'greater than'} {low}")
+    for key in ("min_green", "max_green", "yellow", "all_red", "fixed_split", "pressure_ratio"):
+        finite(f"signal.{key}", getattr(cfg.signal, key))
+    for key in ("wait_weight", "hysteresis"):
+        finite(f"signal.{key}", getattr(cfg.signal, key), inclusive=True)
+    if cfg.signal.max_green < cfg.signal.min_green:
+        raise ValueError("max_green must be at least min_green")
+    finite("queue.sat_headway", cfg.queue.sat_headway)
+    finite("queue.startup_lost", cfg.queue.startup_lost, inclusive=True)
+    for key in ("process_fps", "imgsz", "min_track_age"):
+        finite(f"vision.{key}", getattr(cfg.vision, key))
+    finite("vision.conf", cfg.vision.conf, inclusive=True)
+    if cfg.vision.conf > 1:
+        raise ValueError("vision.conf must be between 0 and 1")
+    for name, lanes in [("queue", cfg.queue.lanes), *[(a.name, a.lanes) for a in cfg.approaches]]:
+        if type(lanes) is not int or lanes < 1:
+            raise ValueError(f"{name}: lanes must be a positive integer")
+    names = [a.name for a in cfg.approaches]
+    if len(names) != len(set(names)):
+        raise ValueError("approach names must be unique")
+    for a in cfg.approaches:
+        if not isinstance(a.name, str) or not a.name or a.phase not in {"NS", "EW"}:
+            raise ValueError("approach needs a name and NS or EW phase")
+        # Empty lines are allowed for the explicit commissioning workflow.
+        if a.count_line:
+            if len(a.count_line) != 2 or any(len(p) != 2 for p in a.count_line):
+                raise ValueError(f"{a.name}: count_line requires two 2D points")
+            if a.count_line[0] == a.count_line[1]:
+                raise ValueError(f"{a.name}: count_line cannot have zero length")
+        for p in list(a.count_line) + ([a.approach_side] if a.approach_side else []) + (a.roi or []):
+            if len(p) != 2 or any(type(v) not in {int, float} or not math.isfinite(v) for v in p):
+                raise ValueError(f"{a.name}: geometry needs finite 2D points")
 
 
 def save_config(cfg: AppConfig, path: str | Path) -> None:

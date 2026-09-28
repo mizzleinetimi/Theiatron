@@ -181,7 +181,6 @@ def _draw_intersection(panel, cx, cy, lights, waiting):
 def _draw_comparison(panel, y, stats):
     theia = stats.get("theia_wait")
     fixed = stats.get("fixed_wait")
-    ready = stats.get("ready", False)
     cv2.putText(panel, "AVERAGE WAIT PER CAR", (24, y),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, ACCENT, 1)
     y += 30
@@ -193,13 +192,14 @@ def _draw_comparison(panel, y, stats):
         bar = int(250 * (val or 0) / scale_max)
         cv2.rectangle(panel, (24, y + 7), (24 + bar, y + 20), color, -1)
         y += 44
-    if ready and fixed and theia is not None and fixed > theia:
-        pct = 100.0 * (fixed - theia) / fixed
-        cv2.putText(panel, f"{pct:.0f}% LESS WAITING", (24, y + 6),
-                    cv2.FONT_HERSHEY_DUPLEX, 0.95, GOOD, 2)
-    else:
-        cv2.putText(panel, "measuring...", (24, y + 6),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, DIM, 1)
+    comparison = stats.get("comparison", {})
+    color = DIM
+    if comparison.get("sample_status") == "ready":
+        color = GOOD if comparison.get("outcome") == "better" else (
+            (63, 74, 227) if comparison.get("outcome") == "worse" else DIM
+        )
+    cv2.putText(panel, comparison.get("headline", "measuring..."), (24, y + 6),
+                cv2.FONT_HERSHEY_DUPLEX, 0.65, color, 1)
     y += 30
     a_waiting = stats.get("theia_waiting")
     f_waiting = stats.get("fixed_waiting")

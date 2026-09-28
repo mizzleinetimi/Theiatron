@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Theiatron · Investor demo</title>
+    <link rel="stylesheet" href="demo.css" />
+    <link rel="stylesheet" href="presentation-mode.css" />
+    <script src="presentation-mode.js"></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/workbench/demo.html"
+        >THEIATRON<span>TRAFFIC INTELLIGENCE</span></a
+      >
+      <div class="status" id="connection">Connecting…</div>
+      <a class="quiet" id="workbench" href="/workbench/"
+        >Engineering workbench ↗</a
+      >
+    </header>
+    <main>
+      <div class="intro">
+        <div>
+          <p class="eyebrow">OBSERVE. RECONSTRUCT. EXPERIMENT.</p>
+          <h1>A better decision starts with a clearer view.</h1>
+        </div>
+        <label class="source-picker"
+          >Footage<select id="source">
+            <option value="">Choose analysed footage</option>
+          </select></label
+        >
+      </div>
+      <nav aria-label="Demo chapters">
+        <button data-step="observe">01 <b>Observe</b></button
+        ><button data-step="reconstruct">02 <b>Reconstruct</b></button
+        ><button data-step="compare">03 <b>Experiment</b></button
+        ><button data-step="evidence">04 <b>Evidence</b></button>
+      </nav>
+      <div id="error" role="alert" hidden></div>
+      <section id="observe" hidden>
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">REAL FOOTAGE / REAL INFERENCE</p>
+            <h2>Start with what the camera sees.</h2>
+          </div>
+          <label id="upload" class="button primary"
+            >Analyse new footage<input
+              id="uploadFile"
+              type="file"
+              accept="video/*"
+              hidden
+          /></label>
+        </div>
+        <div class="observe-grid">
+          <div class="video-wrap">
+            <video
+              id="video"
+              controls
+              muted
+              playsinline
+              preload="metadata"
+            ></video
+            ><img id="livePreview" alt="Fresh local detection preview" hidden />
+          </div>
+          <aside>
+            <span class="badge" id="observationMode"
+              >SAVED DETECTION VIDEO</span
+            >
+            <h3 id="sourceName">Choose footage above</h3>
+            <p id="sourceDetail">
+              New footage is processed by the local detector and tracker, not
+              substituted with a sample.
+            </p>
+            <progress
+              id="analysisProgress"
+              max="100"
+              value="0"
+              hidden
+            ></progress
+            ><button id="cancelAnalysis" hidden>Cancel analysis</button>
+            <p>
+              Boxes and tracks are observations. Overlay signal colours are
+              exploratory simulated states, not measured traffic lights.
+            </p>
+            <button class="primary" data-next="reconstruct">
+              Explore the 3D reconstruction →</button
+            ><a id="reanalyse" class="button secondary"
+              >Rerun detector / edit count lines ↗</a
+            >
+            <a
+              id="continuous"
+              class="button secondary"
+              href="/workbench/live.html"
+              >Continuous detection lab ↗</a
+            >
+          </aside>
+        </div>
+      </section>
+      <section id="reconstruct" hidden>
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">SOURCE-SPECIFIC 3D / ESTIMATED SCALE</p>
+            <h2>The recorded junction, from another angle.</h2>
+          </div>
+          <button class="primary" data-next="compare">
+            Test a control strategy →
+          </button>
+        </div>
+        <p class="caption">
+          Automatic camera and road estimates. Vehicle motion comes from
+          recorded tracks; dimensions are not surveyed. Drag inside the scene to
+          orbit.
+        </p>
+        <iframe
+          id="studio"
+          title="Recorded junction reconstruction"
+          allow="fullscreen"
+          loading="lazy"
+        ></iframe>
+      </section>
+      <section id="compare" hidden>
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">TWO INDEPENDENT WORLDS / ONE SET OF INPUTS</p>
+            <h2>What changes when the signals adapt?</h2>
+          </div>
+          <span class="badge" id="mode">NO EXPERIMENT LOADED</span>
+        </div>
+        <div class="experiment-controls">
+          <label
+            >Baseline<select id="baselinePolicy">
+              <option value="fixed">Fixed timing</option>
+              <option value="actuated">Actuated · presence / gap-out</option>
+            </select></label
+          >
+          <label
+            >Theiatron policy<select id="adaptivePolicy">
+              <option value="service-v2">Service v2 · experimental</option>
+              <option value="pressure-v1">Pressure v1 · legacy</option>
+            </select></label
+          >
+          <label
+            >Demand<select id="demand">
+              <option value="tidal">Generated · changing demand</option>
+              <option value="balanced">Generated · balanced</option>
+              <option value="heavy">Generated · heavy traffic</option>
+              <option value="observed">Recorded crossing timestamps</option>
+            </select></label
+          >
+          <label
+            >Load<select id="scale">
+              <option value="0.5">Light · 0.5×</option>
+              <option value="1" selected>Standard · 1×</option>
+              <option value="1.5">Busy · 1.5×</option>
+              <option value="2">Peak · 2×</option>
+            </select></label
+          >
+          <label
+            >Window<select id="duration">
+              <option value="90">90 seconds</option>
+              <option value="180" selected>3 minutes</option>
+              <option value="300">5 minutes</option>
+            </select></label
+          >
+          <label
+            >Seed<input
+              id="seed"
+              type="number"
+              min="0"
+              max="1000000"
+              value="42"
+          /></label>
+          <button class="primary" id="compute" disabled>
+            Compute new comparison</button
+          ><button id="cancel" hidden>Cancel</button>
+        </div>
+        <p class="caption" id="assumption">
+          No survey required: road directions are estimated where possible;
+          lanes, extensions, speeds and exits are explicit hypotheses. Generated
+          demand is not traffic measured in the clip.
+        </p>
+        <div class="job-line">
+          <span id="jobStatus"
+            >Choose footage, then compute. Both controllers will run against
+            identical inputs.</span
+          ><progress id="progress" max="100" value="0" hidden></progress>
+        </div>
+        <div class="scenes">
+          <article>
+            <div class="world-title">
+              <h3 id="baselineTitle">Fixed timing</h3>
+              <span>Configured software comparator</span>
+            </div>
+            <div class="scene" id="fixedScene"></div>
+            <div class="metrics" id="fixedMetrics"></div>
+            <p class="decision" id="fixedDecision">
+              Waiting for simulator state
+            </p>
+          </article>
+          <article>
+            <div class="world-title">
+              <h3 id="candidateTitle">Theiatron service v2</h3>
+              <span>Experimental · ideal simulator sensing</span>
+            </div>
+            <div class="scene" id="adaptiveScene"></div>
+            <div class="metrics" id="adaptiveMetrics"></div>
+            <p class="decision" id="adaptiveDecision">
+              Waiting for simulator state
+            </p>
+          </article>
+        </div>
+        <div class="playback">
+          <button id="play" disabled>Play saved replay</button
+          ><input
+            aria-label="Simulation replay time"
+            id="seek"
+            type="range"
+            min="0"
+            max="180"
+            step="0.1"
+            value="0"
+            disabled
+          /><span id="clock">0.0 s</span
+          ><button id="fit">Reset 3D views</button>
+        </div>
+        <div class="outcome">
+          <strong id="outcome"
+            >Fresh computation, not a retimed winning replay.</strong
+          >
+          <p id="resultDetail">
+            Modelled delay is stopped waiting plus insertion delay, including
+            unfinished vehicles. It is not measured journey-time savings.
+          </p>
+          <button data-next="evidence">Inspect the evidence →</button>
+        </div>
+        <details>
+          <summary>Geometry, assumptions & saved experiments</summary>
+          <p id="profileInfo">
+            A source-specific proposal will be created when you compute.
+          </p>
+          <a id="editProfile" class="button secondary" hidden
+            >Inspect / edit network ↗</a
+          ><label
+            >Saved experiments<select id="saved">
+              <option value="">Choose a completed experiment</option>
+            </select></label
+          >
+        </details>
+      </section>
+      <section id="evidence" hidden>
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">TRACEABLE INPUTS / INSPECTABLE RESULTS</p>
+            <h2>Know what the demonstration proves.</h2>
+          </div>
+          <a class="button primary" id="download" hidden
+            >Download evidence bundle</a
+          >
+        </div>
+        <div class="evidence-grid">
+          <article>
+            <span class="badge">OBSERVED</span>
+            <h3>The camera evidence</h3>
+            <p>
+              Video frames, detector boxes, tracker fragments and counted
+              crossing times. Tracking and counts are not independently
+              validated.
+            </p>
+            <p id="evidenceSource"></p>
+          </article>
+          <article>
+            <span class="badge">ESTIMATED / ASSUMED</span>
+            <h3>The junction hypothesis</h3>
+            <p>
+              Camera-derived ground plane when available. Assumed scale,
+              procedural lanes and extensions, most-opposite exits and signal
+              timings. No surveyed junction or field-control claim.
+            </p>
+          </article>
+          <article>
+            <span class="badge">COMPUTED</span>
+            <h3>The counterfactual</h3>
+            <p>
+              Stock SUMO, two independent controller worlds, identical demand
+              and routes. Vehicles that cannot enter or finish remain in the
+              accounting.
+            </p>
+            <p>
+              One seed and an untuned fixed baseline do not establish real-world
+              benefit.
+            </p>
+          </article>
+        </div>
+        <article class="report-card">
+          <h3>Selected experiment</h3>
+          <p id="evidenceResult">
+            Compute or select an experiment to see its checksummed result.
+          </p>
+          <dl id="facts"></dl>
+          <ul id="limitations"></ul>
+          <a id="reportLink" class="button secondary" hidden
+            >Open full JSON report</a
+          >
+        </article>
+      </section>
+    </main>
+    <footer>
+      Local R&D demonstration · no roadside actuation · no measured
+      field-savings claim
+    </footer>
+    <script src="/viz/vendor/three.min.js"></script>
+    <script src="/viz/vendor/OrbitControls.js"></script>
+    <script src="traffic-scene.js"></script>
+    <script src="demo-math.js"></script>
+    <script src="demo-scene.js"></script>
+    <script src="demo.js"></script>
+  </body>
+</html>

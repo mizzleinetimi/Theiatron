@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Theiatron · Recorded junction studio</title>
+    <link rel="stylesheet" href="replay.css" />
+    <link rel="stylesheet" href="presentation-mode.css" />
+    <script src="presentation-mode.js"></script>
+  </head>
+  <body>
+    <header class="studio-header">
+      <a id="back" target="_top" href="/workbench/" class="brand"
+        >THEIATRON<span>RECORDED JUNCTION STUDIO</span></a
+      >
+      <div class="source-title">
+        <strong id="sourceName">Loading recorded tracks…</strong
+        ><span id="sourceIdentity">Source-bound reconstruction</span>
+      </div>
+      <div class="header-actions">
+        <a id="freshLink" class="button" target="_top" href="/workbench/live.html">Try fresh detection →</a>
+        <a id="demoLink" class="button" target="_top" href="/workbench/demo.html">Investor demo →</a>
+        <button id="autoRefine" class="primary" disabled>Auto refine</button
+        ><button id="calibrate">Review road</button>
+      </div>
+    </header>
+    <main>
+      <section class="stage" aria-label="Recorded 3D replay">
+        <div id="scene"></div>
+        <div class="scene-top">
+          <div>
+            <span class="pill">OBSERVED TRACK REPLAY</span>
+            <p id="sceneStatus">Loading this source only</p>
+          </div>
+          <div class="presets" aria-label="3D camera presets">
+            <button data-preset="junction">Junction</button
+            ><button data-preset="top">Top</button
+            ><button data-preset="street">Street</button
+            ><button data-preset="fit">Fit road</button>
+          </div>
+        </div>
+        <div class="scene-bottom">
+          <div class="scene-help">
+            Drag to orbit · right-drag to pan · scroll to zoom<br /><span
+              >Click a vehicle to inspect its recorded track</span
+            >
+          </div>
+          <button id="focus">Focus 3D</button>
+        </div>
+        <div id="fatal" role="alert" hidden></div>
+      </section>
+      <aside id="inspector">
+        <div class="panel-title">
+          <span class="eyebrow">01 / CAMERA EVIDENCE</span
+          ><span class="dot">SOURCE CLOCK</span>
+        </div>
+        <div class="source-preview">
+          <video id="sourceClip" muted playsinline preload="auto"></video
+          ><canvas
+            id="overlay"
+            width="1280"
+            height="720"
+            aria-label="Recorded track anchors over the source video"
+          ></canvas>
+        </div>
+        <p id="videoStatus" class="muted">
+          Saved detection video · not a live feed
+        </p>
+        <p class="muted">
+          <span id="signalNotice">Overlay signal colours are simulated, not observed traffic lights.</span>
+        </p>
+        <div class="stats">
+          <div>
+            <strong id="visibleCount">—</strong><span>tracks visible</span>
+          </div>
+          <div>
+            <strong id="trackTotal">—</strong><span>saved track fragments</span>
+          </div>
+        </div>
+        <div class="panel-title"><span class="eyebrow">02 / DISPLAY</span></div>
+        <label class="toggle"
+          ><input type="checkbox" id="showTrails" />Show recorded
+          trajectories</label
+        >
+        <label class="toggle"
+          ><input type="checkbox" id="stabilize" checked />Refined trajectories
+          <span>offline estimates</span></label
+        >
+        <label class="toggle"
+          ><input type="checkbox" id="automaticRoad" checked />Automatic road
+          surface</label
+        >
+        <label class="toggle"
+          ><input type="checkbox" id="perspectiveCorrection" checked />Undo
+          camera perspective</label
+        >
+        <label class="toggle"
+          ><input type="checkbox" id="showGroundGrid" />Show ground grid
+          <small>assumed 5 m</small></label
+        >
+        <p id="projectionStatus" class="muted" role="status"></p>
+        <label class="toggle"
+          ><input type="checkbox" id="roadOnly" checked />Only anchors inside
+          traced road</label
+        >
+        <p id="displayStatus" class="muted">
+          Linear interpolation between observations. No queue retiming.
+        </p>
+        <div id="refinementStatus" class="refinement-status" role="status">
+          Automatic refinement has not been computed.
+        </div>
+        <div id="refinementWork" class="refinement-work" role="status" hidden>
+          <p id="refinementMessage"></p>
+          <button id="cancelRefinement" hidden>Cancel refinement</button>
+        </div>
+        <div class="panel-title">
+          <span class="eyebrow">03 / SELECTED TRACK</span>
+        </div>
+        <select id="trackSelect" aria-label="Select recorded track">
+          <option value="">Click a car or select a track</option>
+        </select>
+        <p id="trackInfo" class="muted">
+          Loading this analysis's track metadata and vehicle-class availability.
+        </p>
+        <div class="actions">
+          <button id="jumpTrack" disabled>Go to track</button
+          ><button id="followTrack" disabled>Follow</button>
+        </div>
+        <details class="limits">
+          <summary>Reconstruction accuracy</summary>
+          <p>
+            This is a planar reconstruction from detected bottom-centre anchors,
+            not a surveyed digital twin. Road edges are estimated from image
+            appearance and traffic support, or manually traced. Camera
+            perspective is estimated from static scene directions when
+            supported, assuming a pinhole camera, orthogonal horizontal
+            directions, upright structures and flat ground. Metre scale is
+            inherited from an assumed reference span, not measured. Image
+            borders and occlusions still limit the road footprint; not every
+            outline edge is a kerb. Vehicle sizes and colours are illustrative;
+            retained detections choose the model class when available.
+            Occlusions, missed vehicles and ID switches remain visible in the
+            evidence.
+          </p>
+          <p>
+            Gaps over 0.61 s and flagged discontinuities are not bridged.
+            Offline trajectory filtering is optional and never changes saved
+            observations. No traffic savings are computed here.
+          </p>
+          <p id="revision">No saved calibration revision</p>
+        </details>
+        <a id="compareLink" class="next" href="/workbench/"
+          >Next: draft the A/B simulation →</a
+        >
+      </aside>
+      <section id="calibration" hidden aria-label="Road calibration editor">
+        <div class="editor-heading">
+          <div>
+            <span class="eyebrow">CAMERA → GROUND PLANE</span>
+            <h1>Reconstruct this junction.</h1>
+          </div>
+          <button id="closeCalibration">Close editor</button>
+        </div>
+        <p class="muted">
+          Place A–B–C–D around a rectangle on the road plane, in perimeter
+          order. Enter its measured dimensions when available. Drag numbered
+          road corners to trace only drivable ground. Every save remains an
+          unvalidated draft.
+        </p>
+        <div class="calibration-grid">
+          <div>
+            <canvas
+              id="calibrationCanvas"
+              width="1280"
+              height="720"
+              aria-label="Drag calibration anchors or road outline vertices on the camera image"
+            ></canvas>
+            <p id="editHint" class="muted">
+              Drag a coloured anchor or a numbered road corner.
+            </p>
+            <p class="muted">
+              The mint grid represents equal 5 m ground intervals under this
+              draft. It should narrow towards the horizon in the image, but
+              remain square in 3D. Scale is estimated.
+            </p>
+          </div>
+          <div class="editor-fields">
+            <div class="assist-panel">
+              <strong>Guided perspective</strong>
+              <p>No measured distances needed. Select two ground edges that are parallel on the real road (A), then two in a perpendicular direction (B). Use long, widely separated straight edges—not car roofs or shadows. This remains an operator-assisted estimate.</p>
+              <button id="assistStart">Mark four direction lines</button>
+              <button id="assistUndo" disabled>Undo last endpoint</button>
+              <p id="assistHint" role="status">Eight clicks, then a stability check and 3D preview.</p>
+              <div class="dimensions">
+                <label>Endpoint X<input id="assistX" type="number" min="0" max="1279" step="0.1" /></label>
+                <label>Endpoint Y<input id="assistY" type="number" min="0" max="719" step="0.1" /></label>
+              </div>
+              <button id="assistAdd">Add endpoint by coordinates</button>
+              <button id="assistPreview" disabled>Check & preview in 3D</button>
+            </div>
+            <label
+              >Draft label<input id="calibrationLabel" maxlength="120"
+            /></label>
+            <div class="dimensions">
+              <label
+                >A–B width (assumed m)<input
+                  id="widthM"
+                  type="number"
+                  min="2"
+                  max="150"
+                  step="0.1" /></label
+              ><label
+                >B–C depth (assumed m)<input
+                  id="depthM"
+                  type="number"
+                  min="2"
+                  max="150"
+                  step="0.1"
+              /></label>
+            </div>
+            <label
+              >Edit mode<select id="editMode">
+                <option value="move">Move anchors / road corners</option>
+                <option value="add">Insert road corner on nearest edge</option>
+                <option value="remove">Remove road corner</option>
+                <option value="trace">Trace a new road outline</option>
+                <option value="directions">Mark assisted direction lines</option>
+              </select></label
+            >
+            <label>Selected point<select id="pointSelect"></select></label>
+            <div class="dimensions">
+              <label
+                >Image X<input
+                  id="pointX"
+                  type="number"
+                  min="0"
+                  max="1279"
+                  step="1" /></label
+              ><label
+                >Image Y<input
+                  id="pointY"
+                  type="number"
+                  min="0"
+                  max="719"
+                  step="1"
+              /></label>
+            </div>
+            <div class="actions">
+              <button id="applyPoint">Place point</button
+              ><button id="undoCalibration">Undo edit</button>
+            </div>
+            <button id="resetCalibration">Reset unsaved edits</button>
+            <button id="editAutomaticRoad" disabled>
+              Copy automatic outline into draft
+            </button>
+            <p id="calibrationStatus" role="status"></p>
+            <button id="saveCalibration" class="primary">
+              Save draft & update 3D
+            </button>
+          </div>
+        </div>
+      </section>
+      <div id="assistPreviewBar" class="assist-preview-bar" hidden role="status">
+        <strong>UNSAVED ASSISTED PREVIEW</strong>
+        <p>Operator-selected directions · perpendicular axes assumed · scale estimated. Inspect the road and vehicles before saving. No accuracy validation.</p>
+        <button id="assistBack">Adjust lines</button>
+        <button id="assistDiscard">Discard preview</button>
+        <button id="assistSave" class="primary">Save assisted estimate</button>
+        <p id="assistSaveStatus"></p>
+      </div>
+    </main>
+    <footer class="transport">
+      <button id="play" class="primary" disabled>Play</button
+      ><button id="restart" aria-label="Restart replay" disabled>↺</button>
+      <input
+        id="seek"
+        aria-label="Replay time in seconds"
+        type="range"
+        min="0"
+        max="1"
+        step="0.01"
+        value="0"
+        disabled
+      />
+      <output id="clock">0:00 / 0:00</output>
+      <select id="speed" aria-label="Playback speed">
+        <option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="2">2×</option>
+        <option value="4">4×</option>
+      </select>
+      <span class="transport-note"
+        >Original timestamps · no counterfactual motion</span
+      >
+    </footer>
+    <script src="/viz/vendor/three.min.js"></script>
+    <script src="/viz/vendor/OrbitControls.js"></script>
+    <script src="replay-math.js"></script>
+    <script src="traffic-scene.js"></script>
+    <script src="assist-guide.js"></script>
+    <script src="replay.js"></script>
+  </body>
+</html>
